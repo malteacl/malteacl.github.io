@@ -180,6 +180,7 @@ function authForm() {
 function sessionLine() {
   if (S.mode !== "supa" || !S.user) return "";
   return `<div class="acct"><span class="note">Sesión: ${esc(S.user.email)}</span><button class="btn ghost" type="button" data-act="signout">Cerrar sesión</button>${
+    S.profile && !S.editing && !S.confirmDel ? `<button class="btn ghost" type="button" data-act="export">Descargar mis datos</button>` : ""}${
     S.profile && !S.editing ? (S.confirmDel
       ? `<button class="btn ghost danger" type="button" data-act="delyes">Sí, borrar todo</button><button class="btn ghost" type="button" data-act="delno">Cancelar</button>`
       : `<button class="btn ghost danger" type="button" data-act="delacct">Borrar mi cuenta</button>`) : ""}</div>${
@@ -460,6 +461,7 @@ document.addEventListener("click", e => {
   else if (act === "delacct") { S.confirmDel = true; renderAccount(); }
   else if (act === "delno") { S.confirmDel = false; renderAccount(); }
   else if (act === "delyes") { deleteAccount(); }
+  else if (act === "export") { exportData(t); }
 });
 document.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
@@ -635,6 +637,24 @@ async function deleteAccount() {
   try { await sb.auth.signOut({ scope: "local" }); } catch (e) {}
   if (S.user) signedOut();
   toast("Cuenta borrada", "Eliminamos tu perfil, tus notas y tu lista.");
+}
+async function exportData(btn) {
+  if (!S.user || !sb) return;
+  btn.disabled = true;
+  const sg = await sb.from("suggestions").select("name,brewery,style,created_at").eq("user_id", S.user.id);
+  btn.disabled = false;
+  if (sg.error) { toast("No pudimos preparar tus datos", "Inténtalo de nuevo en unos minutos."); return; }
+  const data = {
+    generado: new Date().toISOString(), responsable: "Maltea SA",
+    cuenta: { correo: S.user.email },
+    perfil: S.profile ? { nombre: S.profile.name, pais: S.profile.country, region: S.profile.region || null, mayor_de_edad: true, desde: S.profile.since || null } : null,
+    notas: Object.keys(S.scores).sort().map(id => ({ cerveza: BY[id].full, id, nota: S.scores[id] })),
+    lista: S.wish.map(id => ({ cerveza: BY[id].full, id })),
+    sugerencias: (sg.data || []).map(x => ({ cerveza: x.name, cerveceria: x.brewery, estilo: x.style, fecha: x.created_at }))
+  };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a"); a.href = url; a.download = "maltea-mis-datos.json"; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 function supaDown() { /* sin conexión con Supabase: seguir en modo local */
   if (S.authReady) return;

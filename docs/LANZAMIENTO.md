@@ -79,9 +79,9 @@ Limitación: si el remitente es una dirección de Gmail u otro servicio gratuito
 
 **Confirm email** sigue apagado para que cualquiera pueda registrarse en el momento. Encenderlo exige que el paso 3 funcione bien; si no, la gente se queda sin poder entrar. Conviene activarlo cuando haya dominio propio.
 
-### 5. Política de privacidad (5 minutos, obligatorio)
+### 5. Política de privacidad (listo)
 
-`privacidad.html` necesita el nombre de quien responde por Maltea y un correo de contacto público. Conviene que la revise un abogado: la Ley 21.719 de datos personales tiene fecha de entrada en vigencia el 1 de diciembre de 2026, aunque hay un proyecto en el Congreso para postergarla.
+`privacidad.html` identifica a Maltea SA como responsable. No publica un correo de contacto: los derechos de acceso, rectificación, supresión y portabilidad se ejercen dentro de la app con «Descargar mis datos», «Editar perfil» y «Borrar mi cuenta». Conviene que un abogado revise si la ley exige además un canal de contacto: la Ley 21.719 de datos personales tiene fecha de entrada en vigencia el 1 de diciembre de 2026, aunque hay un proyecto en el Congreso para postergarla.
 
 ### 6. Prueba final (10 minutos)
 
