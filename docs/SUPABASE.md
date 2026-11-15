@@ -52,4 +52,4 @@ Los promedios salen de la función `beer_stats()`, que entrega votos y suma por 
 
 - `schema.sql` se ejecutó en un Postgres local, con dos personas y un visitante anónimo, para comprobar que nadie lee ni modifica datos ajenos.
 - La página se probó en un navegador con el cliente real de Supabase contra un servidor simulado.
-- No se ha probado contra un proyecto real de Supabase. En particular, `delete_my_account()` depende de que la función pueda borrar en `auth.users`; conviene probarlo con una cuenta de prueba.
+- El 15 de noviembre de 2026 se probó contra el proyecto real con una cuenta temporal: registro, perfil, notas, lista, sugerencias, promedios públicos y borrado de cuenta funcionaron, y las reglas rechazaron notas fuera de rango, perfiles sin mayoría de edad y escrituras a nombre de otra persona.
