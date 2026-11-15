@@ -645,7 +645,7 @@ async function exportData(btn) {
   btn.disabled = false;
   if (sg.error) { toast("No pudimos preparar tus datos", "Inténtalo de nuevo en unos minutos."); return; }
   const data = {
-    generado: new Date().toISOString(), responsable: "Maltea SA",
+    generado: new Date().toISOString(), responsable: "Maltea SA", contacto: "malteasa.cerveza@gmail.com",
     cuenta: { correo: S.user.email },
     perfil: S.profile ? { nombre: S.profile.name, pais: S.profile.country, region: S.profile.region || null, mayor_de_edad: true, desde: S.profile.since || null } : null,
     notas: Object.keys(S.scores).sort().map(id => ({ cerveza: BY[id].full, id, nota: S.scores[id] })),

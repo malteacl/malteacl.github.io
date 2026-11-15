@@ -81,7 +81,7 @@ Limitación: si el remitente es una dirección de Gmail u otro servicio gratuito
 
 ### 5. Política de privacidad (listo)
 
-`privacidad.html` identifica a Maltea SA como responsable. No publica un correo de contacto: los derechos de acceso, rectificación, supresión y portabilidad se ejercen dentro de la app con «Descargar mis datos», «Editar perfil» y «Borrar mi cuenta». Conviene que un abogado revise si la ley exige además un canal de contacto: la Ley 21.719 de datos personales tiene fecha de entrada en vigencia el 1 de diciembre de 2026, aunque hay un proyecto en el Congreso para postergarla.
+`privacidad.html` identifica a Maltea SA como responsable, con contacto en `malteasa.cerveza@gmail.com`. Los derechos de acceso, rectificación, supresión y portabilidad también se ejercen dentro de la app con «Descargar mis datos», «Editar perfil» y «Borrar mi cuenta». Revisa ese correo con frecuencia: las solicitudes de datos personales tienen plazos legales de respuesta. Conviene que un abogado revise la política: la Ley 21.719 de datos personales tiene fecha de entrada en vigencia el 1 de diciembre de 2026, aunque hay un proyecto en el Congreso para postergarla.
 
 ### 6. Prueba final (10 minutos)
 
