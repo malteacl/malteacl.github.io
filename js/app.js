@@ -31,7 +31,7 @@ const SUPA_SRC = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dis
 const S = { profile: null, scores: {}, wish: [], sug: [], all: {}, cloud: false, db: null, uid: null, editing: false, error: "",
   q: "", seg: "all", fam: "all", pais: "all", sort: "name", shown: PAGE, stale: false, deckSeg: "all", skipped: new Set(), earned: new Set(), level: 0,
   mode: SUPA ? "supa" : "local", user: null, authReady: !SUPA, loading: false, loadErr: false, busy: false, authMsg: "", authEmail: "", confirmDel: false, syncErr: false,
-  owner: null, localProfile: null, fetched: {}, statsBase: {}, statsAt: 0, recovery: RECOVERY_LINK, google: false, forgot: false };
+  owner: null, localProfile: null, fetched: {}, statsBase: {}, statsAt: 0, recovery: RECOVERY_LINK, google: false, forgot: false, authHow: "up" };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const num = x => x.toFixed(1).replace(".", ",");
@@ -163,16 +163,17 @@ function authForm() {
       ${S.error ? `<p class="err" role="alert">${esc(S.error)}</p>` : ""}${S.authMsg ? `<p class="note" role="status">${esc(S.authMsg)}</p>` : ""}
       <div class="row"><button class="btn" type="submit"${S.busy ? " disabled" : ""}>Enviar enlace</button><button class="btn ghost" type="button" data-act="forgotno">Volver</button></div>
     </form>`;
-  return `<h2>Entra a Maltea</h2>
-    <p class="sub">Con tu cuenta, tus notas y tu lista te siguen a cualquier dispositivo. ¿Primera vez? Escribe tu correo, elige una contraseña y presiona «Crear cuenta».</p>
+  const up = S.authHow === "up";
+  return `<h2>${up ? "Crea tu cuenta" : "Entra a Maltea"}</h2>
+    <p class="sub">${up ? "Escribe tu correo y elige una contraseña. Con tu cuenta, tus notas y tu lista te siguen a cualquier dispositivo." : "Entra con el correo y la contraseña de tu cuenta."}</p>
     <form id="auth" novalidate>
       <label class="f" for="au-email">Correo
         <input type="email" id="au-email" autocomplete="email" value="${esc(S.authEmail)}"></label>
       <label class="f" for="au-pass">Contraseña
-        <input type="password" id="au-pass" autocomplete="current-password" minlength="8"></label>
+        <input type="password" id="au-pass" autocomplete="${up ? "new-password" : "current-password"}" minlength="8"></label>${up ? `<span class="note" style="margin-top:-8px">Al menos 8 caracteres.</span>` : ""}
       ${S.error ? `<p class="err" role="alert">${esc(S.error)}</p>` : ""}${S.authMsg ? `<p class="note" role="status">${esc(S.authMsg)}</p>` : ""}
-      <div class="row"><button class="btn" type="submit" data-how="in"${S.busy ? " disabled" : ""}>Entrar</button><button class="btn ghost" type="submit" data-how="up"${S.busy ? " disabled" : ""}>Crear cuenta</button></div>
-      ${CFG.recuperarClave ? `<p class="note"><button type="button" class="linkbtn" data-act="forgot">¿Olvidaste tu contraseña?</button></p>` : ""}
+      <button class="btn" type="submit"${S.busy ? " disabled" : ""}>${S.busy ? "Un momento…" : up ? "Crear cuenta" : "Entrar"}</button>
+      <p class="note">${up ? `¿Ya tienes cuenta? <button type="button" class="linkbtn" data-act="howin">Entra aquí</button>` : `¿Primera vez en Maltea? <button type="button" class="linkbtn" data-act="howup">Crea tu cuenta</button>`}${!up && CFG.recuperarClave ? ` · <button type="button" class="linkbtn" data-act="forgot">¿Olvidaste tu contraseña?</button>` : ""}</p>
       ${S.google ? `<div class="or"><span>o</span></div><button class="btn ghost google" type="button" data-act="google">Entrar con Google</button>` : ""}
       <p class="note">${pend ? `Tienes ${pend} ${pend === 1 ? "nota" : "notas"} en este navegador; ${pend === 1 ? "se guardará" : "se guardarán"} en tu cuenta al entrar. ` : ""}Al crear tu cuenta aceptas la <a href="privacidad.html">política de privacidad</a>.</p>
     </form>`;
@@ -400,7 +401,7 @@ document.addEventListener("submit", e => {
     if (isNew) toast("Perfil creado", "Parte por la cata rápida y ponle nota a lo que ya conoces.");
   } else if (e.target.id === "auth") {
     if (S.busy || !sb) return;
-    const how = (e.submitter && e.submitter.dataset.how) || "in", email = $("au-email").value.trim().toLowerCase(), pass = $("au-pass").value;
+    const how = S.authHow, email = $("au-email").value.trim().toLowerCase(), pass = $("au-pass").value;
     S.authEmail = email; S.authMsg = "";
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { S.error = "Escribe un correo válido."; renderAccount(); $("au-email").focus(); return; }
     if (pass.length < 8) { S.error = "La contraseña debe tener al menos 8 caracteres."; renderAccount(); $("au-pass").focus(); return; }
@@ -454,6 +455,10 @@ document.addEventListener("click", e => {
   else if (act === "fam") { S.fam = t.dataset.f; S.seg = "all"; S.q = ""; S.pais = "all"; S.shown = PAGE; $("fam").value = S.fam; $("q").value = ""; $("pais").value = "all"; renderList(); $("catalogo").scrollIntoView(); }
   else if (act === "edit") { S.editing = true; S.confirmDel = false; renderAccount(); $("name").focus(); }
   else if (act === "google") { if (sb) sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: SITE } }); }
+  else if (act === "howin" || act === "howup") {
+    const em = $("au-email"); if (em) S.authEmail = em.value.trim();
+    S.authHow = act === "howup" ? "up" : "in"; S.error = ""; S.authMsg = ""; renderAccount(); const f = $("au-email"); if (f) f.focus();
+  }
   else if (act === "forgot") { S.forgot = true; S.error = ""; S.authMsg = ""; renderAccount(); const f = $("fg-email"); if (f) f.focus(); }
   else if (act === "forgotno") { S.forgot = false; S.error = ""; S.authMsg = ""; renderAccount(); }
   else if (act === "recno") { S.recovery = false; S.error = ""; renderAccount(); }
@@ -564,20 +569,24 @@ async function loadStats() {
 }
 function authErr(e) {
   const c = e.code || "", m = e.message || "";
-  if (c === "invalid_credentials" || /invalid login/i.test(m)) return "Correo o contraseña incorrectos. Si es tu primera vez en Maltea, usa «Crear cuenta».";
+  if (c === "invalid_credentials" || /invalid login/i.test(m)) return "Correo o contraseña incorrectos. Si nunca has creado una cuenta en Maltea, usa «Crea tu cuenta».";
   if (c === "user_already_exists" || /already registered/i.test(m)) return "Ese correo ya tiene cuenta. Usa «Entrar».";
   if (c === "weak_password") return "Elige una contraseña más difícil de adivinar.";
   if (c === "same_password") return "La nueva contraseña debe ser distinta de la anterior.";
   if (c === "email_not_confirmed") return "Falta confirmar tu correo. Revisa tu bandeja de entrada.";
   if (c === "over_email_send_rate_limit" || e.status === 429) return "Hay muchas solicitudes en este momento. Inténtalo en unos minutos.";
   if (c === "signup_disabled") return "El registro de cuentas nuevas está cerrado por ahora.";
-  return "No pudimos completar la operación. " + m;
+  return "No pudimos completar la operación" + (c || e.status ? ` (código ${c || e.status})` : "") + ". " + m;
 }
 async function doAuth(how, email, pass) {
   S.busy = true; S.error = ""; renderAccount();
   let res; try { res = how === "up" ? await sb.auth.signUp({ email, password: pass, options: { emailRedirectTo: SITE } }) : await sb.auth.signInWithPassword({ email, password: pass }); } catch (e) { res = { error: e }; }
   S.busy = false;
-  if (res.error) { S.error = authErr(res.error); renderAccount(); const f = $("au-pass"); if (f) f.focus(); return; }
+  if (res.error) {
+    S.error = authErr(res.error);
+    if (how === "up" && /ya tiene cuenta/.test(S.error)) { S.authHow = "in"; S.error = "Ese correo ya tiene cuenta. Escribe su contraseña y presiona «Entrar»."; }
+    renderAccount(); const f = $("au-pass"); if (f) f.focus(); return;
+  }
   if (how === "up" && !(res.data && res.data.session)) { S.authMsg = "Te enviamos un correo para confirmar tu cuenta. Ábrelo y luego entra aquí."; renderAccount(); return; }
   handleSession(res.data.session);
 }
@@ -625,7 +634,7 @@ async function signedIn(u) {
   await loadStats(); refreshAvg();
 }
 function signedOut() {
-  S.recovery = false; S.forgot = false; S.user = null; S.profile = null; S.scores = {}; S.wish = []; S.sug = []; S.fetched = {}; S.owner = null; S.localProfile = null;
+  S.recovery = false; S.forgot = false; S.authHow = "in"; S.user = null; S.profile = null; S.scores = {}; S.wish = []; S.sug = []; S.fetched = {}; S.owner = null; S.localProfile = null;
   S.editing = false; S.confirmDel = false; S.loading = false; S.loadErr = false; S.syncErr = false; S.error = ""; S.skipped.clear();
   try { localStorage.removeItem(LS); } catch (e) {}
   renderAll(); syncBadges(true); loadStats().then(refreshAvg);

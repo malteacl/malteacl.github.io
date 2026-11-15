@@ -11,7 +11,7 @@ Los nombres de los menús son los del panel de Supabase a noviembre de 2026 y pu
 1. **Crea el proyecto.** En [supabase.com](https://supabase.com) crea un proyecto en el plan gratuito. Elige una región cercana a Chile, como São Paulo.
 2. **Crea las tablas.** Abre **SQL Editor**, pega el contenido completo de `supabase/schema.sql` y ejecútalo.
 3. **Desactiva la confirmación por correo.** En **Authentication > Sign In / Providers > Email**, apaga **Confirm email**. El servicio de correo incluido solo envía 2 correos por hora y únicamente a miembros del proyecto, así que con la confirmación encendida casi nadie podría registrarse.
-4. **Indica la dirección del sitio.** En **Authentication > URL Configuration**, pon la dirección pública de Maltea (por ejemplo `https://fmartinez2002.github.io/maltea/`) en **Site URL** y agrégala en **Redirect URLs**.
+4. **Indica la dirección del sitio.** En **Authentication > URL Configuration**, pon la dirección pública de Maltea (por ejemplo `https://malteacl.github.io/`) en **Site URL** y agrégala en **Redirect URLs**.
 5. **Copia los dos datos públicos.** En **Project Settings > API Keys** copia la **Project URL** y la **Publishable key** (`sb_publishable_...`).
 6. **Pégalos en `js/config.js`** y sube el cambio.
 

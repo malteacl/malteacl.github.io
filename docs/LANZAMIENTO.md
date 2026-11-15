@@ -1,6 +1,6 @@
 # Lanzamiento de Maltea
 
-Sitio: https://fmartinez2002.github.io/maltea/
+Sitio: https://malteacl.github.io/
 Proyecto de Supabase: `whfcgmbqfvfpgnanahij`
 
 Los nombres de los menús son los de Supabase, Google Cloud y Brevo a noviembre de 2026 y pueden variar un poco.
@@ -21,8 +21,8 @@ Los nombres de los menús son los de Supabase, Google Cloud y Brevo a noviembre 
 Sin esto, los enlaces de los correos y el ingreso con Google llevan a una dirección equivocada.
 
 1. Abre **Authentication > URL Configuration**.
-2. En **Site URL** escribe `https://fmartinez2002.github.io/maltea/` y guarda.
-3. En **Redirect URLs** agrega `https://fmartinez2002.github.io/maltea/**` y guarda.
+2. En **Site URL** escribe `https://malteacl.github.io/` y guarda.
+3. En **Redirect URLs** agrega `https://malteacl.github.io/**` y guarda.
 
 Aprovecha de revisar en **Authentication > Sign In / Providers > Email** si aparece un largo mínimo de contraseña; si existe, ponlo en 8, igual que la página.
 
@@ -38,7 +38,7 @@ En [Google Cloud Console](https://console.cloud.google.com):
    - Público: **Externo**.
    - En **Dominios autorizados** agrega `supabase.co` y `github.io`.
 3. En **Clientes**, crea un cliente de tipo **Aplicación web**:
-   - **Orígenes de JavaScript autorizados:** `https://fmartinez2002.github.io`
+   - **Orígenes de JavaScript autorizados:** `https://malteacl.github.io`
    - **URI de redireccionamiento autorizados:** `https://whfcgmbqfvfpgnanahij.supabase.co/auth/v1/callback`
 4. Copia el **ID de cliente** y el **Secreto del cliente**.
 5. En **Público**, presiona **Publicar app**. Mientras esté en modo de prueba, solo entran los usuarios de prueba que agregues.
