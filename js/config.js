@@ -5,5 +5,6 @@
 window.MALTEA_CONFIG = {
   supabaseUrl: "https://whfcgmbqfvfpgnanahij.supabase.co",
   supabaseKey: "sb_publishable_kWWpi7U8iuRktK_NZpK3pA_AYymQC68",
-  google: false      // true cuando actives el ingreso con Google en Supabase
+  recuperarClave: false  // true cuando Supabase tenga un servicio de correo propio (SMTP); muestra «¿Olvidaste tu contraseña?»
 };
+/* El botón «Entrar con Google» aparece solo cuando Google está activado en Supabase. */

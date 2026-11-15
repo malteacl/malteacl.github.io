@@ -35,18 +35,9 @@ Los promedios salen de la función `beer_stats()`, que entrega votos y suma por 
 - Al cerrar sesión, el navegador queda sin datos de esa persona.
 - Si Supabase no responde en 10 segundos, la página sigue funcionando en modo local.
 
-## Ingreso con Google (opcional)
+## Google, correo y lanzamiento
 
-1. En Google Cloud, crea credenciales OAuth de tipo aplicación web y agrega como URI de redirección la que Supabase muestra en **Authentication > Sign In / Providers > Google**.
-2. Pega el ID de cliente y el secreto en esa misma pantalla y activa el proveedor.
-3. Cambia `google: true` en `js/config.js`.
-
-## Pendientes antes de abrir al público
-
-- **Recuperar contraseña.** Requiere enviar correos, y para eso hay que conectar un servicio de correo propio (SMTP) en **Authentication > Emails**. Hasta entonces, quien olvide su contraseña no puede recuperarla sola.
-- **Confirmar correos.** Con SMTP propio se puede volver a encender **Confirm email**.
-- **Pausa por inactividad.** En el plan gratuito, el proyecto se pausa tras una semana sin uso y hay que reactivarlo desde el panel.
-- **Política de privacidad.** `privacidad.html` es un borrador: faltan el responsable y el correo de contacto.
+Los pasos para activar Google, el servicio de correo y la recuperación de contraseña están en `docs/LANZAMIENTO.md`.
 
 ## Qué se probó
 

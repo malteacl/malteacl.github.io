@@ -23,6 +23,9 @@ js/app.js             lógica: cuentas, notas, recomendaciones, insignias
 supabase/schema.sql   tablas, reglas de acceso y funciones para Supabase
 docs/FUENTES.md       de dónde sale cada dato y cómo se clasifica
 docs/SUPABASE.md      cómo activar las cuentas paso a paso
+docs/LANZAMIENTO.md   pasos pendientes para lanzar
+supabase/correos/     plantillas de correo en español
+img/                  ícono e imagen para compartir
 ```
 
 No hay paso de compilación ni dependencias. Para verla, abre `index.html` en un navegador o sirve la carpeta con cualquier servidor estático (por ejemplo, GitHub Pages).
@@ -64,6 +67,5 @@ Cada estilo tiene un perfil de sabor. El gusto de una persona es la suma de los 
 - Validar con cada cervecería los 13 estilos marcados «por confirmar».
 - Ampliar el catálogo artesanal: Chile tiene cientos de cervecerías y aquí hay 24.
 - Sumar un segundo supermercado y botillerías como fuente de disponibilidad.
-- Recuperación de contraseña y confirmación de correo, que requieren un servicio de correo propio.
-- Completar y revisar la política de privacidad.
+- Activar Google, el servicio de correo y completar la política de privacidad: ver `docs/LANZAMIENTO.md`.
 - Catálogos para otros países.

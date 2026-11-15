@@ -24,12 +24,14 @@ const REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce
 const CFG = window.MALTEA_CONFIG || {};
 const IN_CLAUDE = !!(window.claude && window.claude.use);
 const SUPA = !IN_CLAUDE && !!(CFG.supabaseUrl && CFG.supabaseKey);
+const RECOVERY_LINK = SUPA && /type=recovery/.test(location.hash + location.search); /* vino desde el correo para cambiar contraseña */
+const SITE = location.origin + location.pathname;
 const SUPA_SRC = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js";
 
 const S = { profile: null, scores: {}, wish: [], sug: [], all: {}, cloud: false, db: null, uid: null, editing: false, error: "",
   q: "", seg: "all", fam: "all", pais: "all", sort: "name", shown: PAGE, stale: false, deckSeg: "all", skipped: new Set(), earned: new Set(), level: 0,
   mode: SUPA ? "supa" : "local", user: null, authReady: !SUPA, loading: false, loadErr: false, busy: false, authMsg: "", authEmail: "", confirmDel: false, syncErr: false,
-  owner: null, localProfile: null, fetched: {}, statsBase: {}, statsAt: 0 };
+  owner: null, localProfile: null, fetched: {}, statsBase: {}, statsAt: 0, recovery: RECOVERY_LINK, google: false, forgot: false };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const num = x => x.toFixed(1).replace(".", ",");
@@ -153,6 +155,14 @@ function toast(title, text) {
 /* ——— cuenta ——— */
 function authForm() {
   const pend = Object.keys(S.scores).length;
+  if (S.forgot) return `<h2>Recupera tu contraseña</h2>
+    <p class="sub">Te enviaremos un enlace para elegir una nueva.</p>
+    <form id="forgot" novalidate>
+      <label class="f" for="fg-email">Correo de tu cuenta
+        <input type="email" id="fg-email" autocomplete="email" value="${esc(S.authEmail)}"></label>
+      ${S.error ? `<p class="err" role="alert">${esc(S.error)}</p>` : ""}${S.authMsg ? `<p class="note" role="status">${esc(S.authMsg)}</p>` : ""}
+      <div class="row"><button class="btn" type="submit"${S.busy ? " disabled" : ""}>Enviar enlace</button><button class="btn ghost" type="button" data-act="forgotno">Volver</button></div>
+    </form>`;
   return `<h2>Entra a Maltea</h2>
     <p class="sub">Con tu cuenta, tus notas y tu lista te siguen a cualquier dispositivo.</p>
     <form id="auth" novalidate>
@@ -162,7 +172,8 @@ function authForm() {
         <input type="password" id="au-pass" autocomplete="current-password" minlength="8"></label>
       ${S.error ? `<p class="err" role="alert">${esc(S.error)}</p>` : ""}${S.authMsg ? `<p class="note" role="status">${esc(S.authMsg)}</p>` : ""}
       <div class="row"><button class="btn" type="submit" data-how="in"${S.busy ? " disabled" : ""}>Entrar</button><button class="btn ghost" type="submit" data-how="up"${S.busy ? " disabled" : ""}>Crear cuenta</button></div>
-      ${CFG.google ? `<button class="btn ghost" type="button" data-act="google">Entrar con Google</button>` : ""}
+      ${CFG.recuperarClave ? `<p class="note"><button type="button" class="linkbtn" data-act="forgot">¿Olvidaste tu contraseña?</button></p>` : ""}
+      ${S.google ? `<div class="or"><span>o</span></div><button class="btn ghost google" type="button" data-act="google">Entrar con Google</button>` : ""}
       <p class="note">${pend ? `Tienes ${pend} ${pend === 1 ? "nota" : "notas"} en este navegador; ${pend === 1 ? "se guardará" : "se guardarán"} en tu cuenta al entrar. ` : ""}Al crear tu cuenta aceptas la <a href="privacidad.html">política de privacidad</a>.</p>
     </form>`;
 }
@@ -177,6 +188,14 @@ function sessionLine() {
 function renderAccount() {
   const el = $("account"), p = S.profile;
   if (S.mode === "supa" && !S.authReady) { el.innerHTML = `<h2>Maltea</h2><p class="sub">Conectando con tu cuenta…</p>`; return; }
+  if (S.mode === "supa" && S.recovery && S.user) { el.innerHTML = `<h2>Elige tu nueva contraseña</h2>
+    <p class="sub">Cuenta: ${esc(S.user.email)}</p>
+    <form id="newpass" novalidate>
+      <label class="f" for="np-pass">Nueva contraseña
+        <input type="password" id="np-pass" autocomplete="new-password" minlength="8"></label>
+      ${S.error ? `<p class="err" role="alert">${esc(S.error)}</p>` : ""}
+      <div class="row"><button class="btn" type="submit"${S.busy ? " disabled" : ""}>Guardar contraseña</button><button class="btn ghost" type="button" data-act="recno">Ahora no</button></div>
+    </form>`; return; }
   if (S.mode === "supa" && !S.user) { el.innerHTML = authForm(); return; }
   if (S.mode === "supa" && S.loading) { el.innerHTML = `<h2>Maltea</h2><p class="sub">Cargando tus datos…</p>`; return; }
   if (S.mode === "supa" && S.loadErr) { el.innerHTML = `<h2>Maltea</h2><p class="err" role="alert">No pudimos cargar tus datos. Revisa tu conexión y recarga la página.</p>${sessionLine()}`; return; }
@@ -385,6 +404,27 @@ document.addEventListener("submit", e => {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { S.error = "Escribe un correo válido."; renderAccount(); $("au-email").focus(); return; }
     if (pass.length < 8) { S.error = "La contraseña debe tener al menos 8 caracteres."; renderAccount(); $("au-pass").focus(); return; }
     doAuth(how, email, pass);
+  } else if (e.target.id === "forgot") {
+    if (S.busy || !sb) return;
+    const email = $("fg-email").value.trim().toLowerCase(); S.authEmail = email; S.authMsg = "";
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { S.error = "Escribe un correo válido."; renderAccount(); $("fg-email").focus(); return; }
+    S.busy = true; S.error = ""; renderAccount();
+    sb.auth.resetPasswordForEmail(email, { redirectTo: SITE }).then(r => {
+      S.busy = false;
+      if (r.error) S.error = authErr(r.error);
+      else S.authMsg = "Si hay una cuenta con ese correo, te llegará un enlace en unos minutos. Revisa también la carpeta de spam.";
+      renderAccount();
+    }, () => { S.busy = false; S.error = "No pudimos enviar el correo. Inténtalo de nuevo."; renderAccount(); });
+  } else if (e.target.id === "newpass") {
+    if (S.busy || !sb) return;
+    const pass = $("np-pass").value;
+    if (pass.length < 8) { S.error = "La contraseña debe tener al menos 8 caracteres."; renderAccount(); $("np-pass").focus(); return; }
+    S.busy = true; S.error = ""; renderAccount();
+    sb.auth.updateUser({ password: pass }).then(r => {
+      S.busy = false;
+      if (r.error) { S.error = authErr(r.error); renderAccount(); return; }
+      S.recovery = false; S.error = ""; renderAccount(); toast("Contraseña actualizada", "Desde ahora entra con tu nueva contraseña.");
+    }, () => { S.busy = false; S.error = "No pudimos guardar la contraseña. Inténtalo de nuevo."; renderAccount(); });
   } else if (e.target.id === "suggest") {
     const n = $("sg-name").value.trim(), msg = $("sg-msg");
     if (!n) { msg.textContent = "Escribe el nombre de la cerveza."; $("sg-name").focus(); return; }
@@ -412,7 +452,10 @@ document.addEventListener("click", e => {
   else if (act === "seg") { S.seg = t.dataset.s; S.shown = PAGE; renderList(); }
   else if (act === "fam") { S.fam = t.dataset.f; S.seg = "all"; S.q = ""; S.pais = "all"; S.shown = PAGE; $("fam").value = S.fam; $("q").value = ""; $("pais").value = "all"; renderList(); $("catalogo").scrollIntoView(); }
   else if (act === "edit") { S.editing = true; S.confirmDel = false; renderAccount(); $("name").focus(); }
-  else if (act === "google") { if (sb) sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } }); }
+  else if (act === "google") { if (sb) sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: SITE } }); }
+  else if (act === "forgot") { S.forgot = true; S.error = ""; S.authMsg = ""; renderAccount(); const f = $("fg-email"); if (f) f.focus(); }
+  else if (act === "forgotno") { S.forgot = false; S.error = ""; S.authMsg = ""; renderAccount(); }
+  else if (act === "recno") { S.recovery = false; S.error = ""; renderAccount(); }
   else if (act === "signout") { signOut(); }
   else if (act === "delacct") { S.confirmDel = true; renderAccount(); }
   else if (act === "delno") { S.confirmDel = false; renderAccount(); }
@@ -522,6 +565,7 @@ function authErr(e) {
   if (c === "invalid_credentials" || /invalid login/i.test(m)) return "Correo o contraseña incorrectos.";
   if (c === "user_already_exists" || /already registered/i.test(m)) return "Ese correo ya tiene cuenta. Usa «Entrar».";
   if (c === "weak_password") return "Elige una contraseña más difícil de adivinar.";
+  if (c === "same_password") return "La nueva contraseña debe ser distinta de la anterior.";
   if (c === "email_not_confirmed") return "Falta confirmar tu correo. Revisa tu bandeja de entrada.";
   if (c === "over_email_send_rate_limit" || e.status === 429) return "Hay muchas solicitudes en este momento. Inténtalo en unos minutos.";
   if (c === "signup_disabled") return "El registro de cuentas nuevas está cerrado por ahora.";
@@ -529,7 +573,7 @@ function authErr(e) {
 }
 async function doAuth(how, email, pass) {
   S.busy = true; S.error = ""; renderAccount();
-  let res; try { res = how === "up" ? await sb.auth.signUp({ email, password: pass }) : await sb.auth.signInWithPassword({ email, password: pass }); } catch (e) { res = { error: e }; }
+  let res; try { res = how === "up" ? await sb.auth.signUp({ email, password: pass, options: { emailRedirectTo: SITE } }) : await sb.auth.signInWithPassword({ email, password: pass }); } catch (e) { res = { error: e }; }
   S.busy = false;
   if (res.error) { S.error = authErr(res.error); renderAccount(); const f = $("au-pass"); if (f) f.focus(); return; }
   if (how === "up" && !(res.data && res.data.session)) { S.authMsg = "Te enviamos un correo para confirmar tu cuenta. Ábrelo y luego entra aquí."; renderAccount(); return; }
@@ -548,7 +592,7 @@ function handleSession(session) {
 async function signedIn(u) {
   const uid = u.id, anon = !S.owner, mine = anon || S.owner === uid;
   const localScores = mine ? S.scores : {}, localWish = mine ? S.wish : [], localProfile = anon ? S.localProfile : null;
-  S.user = { id: uid, email: u.email || "" }; S.authReady = true; S.loading = true; S.loadErr = false; S.error = ""; S.authMsg = ""; S.busy = false; S.profile = null;
+  S.user = { id: uid, email: u.email || "" }; S.forgot = false; S.authReady = true; S.loading = true; S.loadErr = false; S.error = ""; S.authMsg = ""; S.busy = false; S.profile = null;
   renderAccount();
   let p, r, w;
   try {
@@ -579,7 +623,7 @@ async function signedIn(u) {
   await loadStats(); refreshAvg();
 }
 function signedOut() {
-  S.user = null; S.profile = null; S.scores = {}; S.wish = []; S.sug = []; S.fetched = {}; S.owner = null; S.localProfile = null;
+  S.recovery = false; S.forgot = false; S.user = null; S.profile = null; S.scores = {}; S.wish = []; S.sug = []; S.fetched = {}; S.owner = null; S.localProfile = null;
   S.editing = false; S.confirmDel = false; S.loading = false; S.loadErr = false; S.syncErr = false; S.error = ""; S.skipped.clear();
   try { localStorage.removeItem(LS); } catch (e) {}
   renderAll(); syncBadges(true); loadStats().then(refreshAvg);
@@ -601,7 +645,11 @@ function connectSupa() {
   sc.onload = () => {
     try { sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey); } catch (e) { supaDown(); return; }
     /* nunca esperar llamadas a Supabase dentro de este aviso: se difiere con setTimeout */
-    sb.auth.onAuthStateChange((ev, session) => { setTimeout(() => { if (S.mode === "supa") handleSession(session); }, 0); });
+    sb.auth.onAuthStateChange((ev, session) => { if (ev === "PASSWORD_RECOVERY") S.recovery = true; setTimeout(() => { if (S.mode === "supa") { handleSession(session); if (ev === "PASSWORD_RECOVERY") renderAccount(); } }, 0); });
+    /* muestra «Entrar con Google» solo si está activado en Supabase */
+    fetch(CFG.supabaseUrl.replace(/\/$/, "") + "/auth/v1/settings", { headers: { apikey: CFG.supabaseKey } }).then(r => r.json()).then(d => {
+      if (d && d.external && d.external.google) { S.google = true; if (!S.user) renderAccount(); }
+    }).catch(() => {});
     sb.auth.getSession().then(r => { if (S.mode === "supa") handleSession(r.data && r.data.session); }, supaDown);
   };
   document.head.append(sc);
