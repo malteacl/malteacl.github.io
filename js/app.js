@@ -164,7 +164,7 @@ function authForm() {
       <div class="row"><button class="btn" type="submit"${S.busy ? " disabled" : ""}>Enviar enlace</button><button class="btn ghost" type="button" data-act="forgotno">Volver</button></div>
     </form>`;
   return `<h2>Entra a Maltea</h2>
-    <p class="sub">Con tu cuenta, tus notas y tu lista te siguen a cualquier dispositivo.</p>
+    <p class="sub">Con tu cuenta, tus notas y tu lista te siguen a cualquier dispositivo. ¿Primera vez? Escribe tu correo, elige una contraseña y presiona «Crear cuenta».</p>
     <form id="auth" novalidate>
       <label class="f" for="au-email">Correo
         <input type="email" id="au-email" autocomplete="email" value="${esc(S.authEmail)}"></label>
@@ -564,7 +564,7 @@ async function loadStats() {
 }
 function authErr(e) {
   const c = e.code || "", m = e.message || "";
-  if (c === "invalid_credentials" || /invalid login/i.test(m)) return "Correo o contraseña incorrectos.";
+  if (c === "invalid_credentials" || /invalid login/i.test(m)) return "Correo o contraseña incorrectos. Si es tu primera vez en Maltea, usa «Crear cuenta».";
   if (c === "user_already_exists" || /already registered/i.test(m)) return "Ese correo ya tiene cuenta. Usa «Entrar».";
   if (c === "weak_password") return "Elige una contraseña más difícil de adivinar.";
   if (c === "same_password") return "La nueva contraseña debe ser distinta de la anterior.";
