@@ -14,21 +14,30 @@ Prueba, puntúa y descubre tu próxima cerveza. Maltea reúne las cervezas que s
 ## Estructura
 
 ```
-index.html        página
-css/styles.css    estilos y temas claro y oscuro
-js/data.js        catálogo: familias, estilos, marcas y cervezas
-js/app.js         lógica: registro, notas, recomendaciones, insignias
-docs/FUENTES.md   de dónde sale cada dato y cómo se clasifica
+index.html            página
+privacidad.html       política de privacidad (borrador)
+css/styles.css        estilos y temas claro y oscuro
+js/config.js          conexión con Supabase (vacía = modo local)
+js/data.js            catálogo: familias, estilos, marcas y cervezas
+js/app.js             lógica: cuentas, notas, recomendaciones, insignias
+supabase/schema.sql   tablas, reglas de acceso y funciones para Supabase
+docs/FUENTES.md       de dónde sale cada dato y cómo se clasifica
+docs/SUPABASE.md      cómo activar las cuentas paso a paso
 ```
 
 No hay paso de compilación ni dependencias. Para verla, abre `index.html` en un navegador o sirve la carpeta con cualquier servidor estático (por ejemplo, GitHub Pages).
 
 ## Dónde se guardan los datos
 
-- **Publicada como artefacto de Claude:** el perfil y las notas quedan en la cuenta de quien la abre, y los promedios se comparten entre todas las personas con acceso.
-- **Abierta como sitio estático:** todo queda en el navegador (`localStorage`). No hay promedios compartidos ni cuentas.
+Maltea elige sola entre tres formas de guardar:
 
-Una app pública necesita un servidor propio con cuentas y base de datos. `js/app.js` concentra el guardado en `pushScores`, `pushProfile` y `connect`, que son los puntos a reemplazar.
+| Dónde se abre | Cuentas | Dónde quedan perfil y notas | Promedios compartidos |
+|---|---|---|---|
+| Sitio publicado con `js/config.js` completo | Correo y contraseña (Google opcional) | Supabase, en la cuenta de cada persona | Sí |
+| Sitio publicado con `js/config.js` vacío | No hay | En el navegador (`localStorage`) | No |
+| Artefacto de Claude | La cuenta de Claude | En el artefacto | Sí, entre quienes tienen acceso |
+
+Los pasos para activar Supabase están en `docs/SUPABASE.md`.
 
 ## Cómo agregar una cerveza
 
@@ -55,4 +64,6 @@ Cada estilo tiene un perfil de sabor. El gusto de una persona es la suma de los 
 - Validar con cada cervecería los 13 estilos marcados «por confirmar».
 - Ampliar el catálogo artesanal: Chile tiene cientos de cervecerías y aquí hay 24.
 - Sumar un segundo supermercado y botillerías como fuente de disponibilidad.
-- Servidor propio con cuentas, y catálogos para otros países.
+- Recuperación de contraseña y confirmación de correo, que requieren un servicio de correo propio.
+- Completar y revisar la política de privacidad.
+- Catálogos para otros países.

@@ -58,7 +58,7 @@ button{font:inherit;color:inherit}
 .sub{color:var(--muted);font-size:14px;margin-top:6px}
 form{display:grid;gap:14px;margin-top:16px}
 label.f{display:grid;gap:5px;font-size:14px;font-weight:600}
-input[type=text],input[type=search],select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
+input[type=text],input[type=search],input[type=email],input[type=password],select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;width:100%}
 .check{display:flex;gap:10px;align-items:flex-start;font-size:14px}
 .check input{margin-top:3px;width:17px;height:17px;accent-color:var(--bottle)}
 .btn{font-weight:700;border:0;border-radius:8px;padding:12px 16px;cursor:pointer;background:var(--amber);color:var(--on-amber);text-decoration:none;display:inline-block}
@@ -66,6 +66,12 @@ input[type=text],input[type=search],select{font:inherit;color:var(--ink);backgro
 .btn.ghost{background:none;color:var(--ink);border:1px solid var(--line);font-weight:600;padding:9px 13px}
 .btn.ghost:hover{border-color:var(--amber)}
 .btn.ghost[aria-pressed="true"]{background:var(--bottle);color:var(--bottle-ink);border-color:transparent}
+.btn[disabled]{opacity:.55;cursor:default}
+.btn.ghost.danger{border-color:var(--red);color:var(--red)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row .btn{padding:12px 16px}
+.acct{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.acct .btn.ghost{font-size:13px;padding:6px 10px}
 .err{color:var(--red);font-size:14px;font-weight:600}
 .note{font-size:13px;color:var(--muted)}
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:16px 0}

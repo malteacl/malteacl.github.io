@@ -20,9 +20,16 @@ const SEGS = [["all", "Todas"], ["masiva", "Masivas"], ["chilena", "Artesanales 
 const LEVELS = [[0, "Curioso"], [3, "Aprendiz"], [10, "Catador"], [25, "Conocedor"], [50, "Sommelier"], [100, "Maestro cervecero"], [180, "Leyenda"]];
 const MIN = 3, PAGE = 24, LS = "maltea-v1";
 const REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+/* Tres formas de guardar: dentro de Claude (datos del artefacto), con Supabase (cuentas propias) o solo en el navegador */
+const CFG = window.MALTEA_CONFIG || {};
+const IN_CLAUDE = !!(window.claude && window.claude.use);
+const SUPA = !IN_CLAUDE && !!(CFG.supabaseUrl && CFG.supabaseKey);
+const SUPA_SRC = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dist/umd/supabase.js";
 
 const S = { profile: null, scores: {}, wish: [], sug: [], all: {}, cloud: false, db: null, uid: null, editing: false, error: "",
-  q: "", seg: "all", fam: "all", pais: "all", sort: "name", shown: PAGE, stale: false, deckSeg: "all", skipped: new Set(), earned: new Set(), level: 0 };
+  q: "", seg: "all", fam: "all", pais: "all", sort: "name", shown: PAGE, stale: false, deckSeg: "all", skipped: new Set(), earned: new Set(), level: 0,
+  mode: SUPA ? "supa" : "local", user: null, authReady: !SUPA, loading: false, loadErr: false, busy: false, authMsg: "", authEmail: "", confirmDel: false, syncErr: false,
+  owner: null, localProfile: null, fetched: {}, statsBase: {}, statsAt: 0 };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const num = x => x.toFixed(1).replace(".", ",");
@@ -32,11 +39,16 @@ function clean(o) { const r = {}; if (o && typeof o === "object") for (const k i
 function cleanWish(a) { return Array.isArray(a) ? [...new Set(a.filter(x => typeof x === "string" && BY[x]))].slice(0, 300) : []; }
 function same(a, b) { const ka = Object.keys(a); return ka.length === Object.keys(b).length && ka.every(k => a[k] === b[k]); }
 
-function loadLocal() { try { const d = JSON.parse(localStorage.getItem(LS) || "null"); if (d) { if (d.profile && typeof d.profile.name === "string") S.profile = d.profile; S.scores = clean(d.scores); S.wish = cleanWish(d.wish); if (Array.isArray(d.sug)) S.sug = d.sug.slice(-20); } } catch (e) {} }
-function saveLocal() { try { localStorage.setItem(LS, JSON.stringify({ profile: S.profile, scores: S.scores, wish: S.wish, sug: S.sug })); } catch (e) {} }
+function loadLocal() { try { const d = JSON.parse(localStorage.getItem(LS) || "null"); if (d) { if (d.profile && typeof d.profile.name === "string") S.profile = d.profile; S.scores = clean(d.scores); S.wish = cleanWish(d.wish); if (Array.isArray(d.sug)) S.sug = d.sug.slice(-20); S.owner = typeof d.owner === "string" ? d.owner : null; } } catch (e) {} }
+function saveLocal() { try { localStorage.setItem(LS, JSON.stringify({ profile: S.profile, scores: S.scores, wish: S.wish, sug: S.sug, owner: S.user ? S.user.id : null })); } catch (e) {} }
 
 /* ——— cálculo ——— */
 function community() {
+  if (S.mode === "supa") { /* totales del servidor sin mis notas, más mis notas actuales */
+    const a = {}; for (const id in S.statsBase) a[id] = { t: S.statsBase[id].t, c: S.statsBase[id].c };
+    for (const id in S.scores) { const x = a[id] || (a[id] = { t: 0, c: 0 }); x.t += S.scores[id]; x.c++; }
+    return a;
+  }
   const agg = {}, rows = Object.assign({}, S.all); rows[S.uid || "me"] = S.scores;
   for (const u in rows) for (const id in rows[u]) { const a = agg[id] || (agg[id] = { t: 0, c: 0 }); a.t += rows[u][id]; a.c++; }
   return agg;
@@ -139,8 +151,35 @@ function toast(title, text) {
 }
 
 /* ——— cuenta ——— */
+function authForm() {
+  const pend = Object.keys(S.scores).length;
+  return `<h2>Entra a Maltea</h2>
+    <p class="sub">Con tu cuenta, tus notas y tu lista te siguen a cualquier dispositivo.</p>
+    <form id="auth" novalidate>
+      <label class="f" for="au-email">Correo
+        <input type="email" id="au-email" autocomplete="email" value="${esc(S.authEmail)}"></label>
+      <label class="f" for="au-pass">Contraseña
+        <input type="password" id="au-pass" autocomplete="current-password" minlength="8"></label>
+      ${S.error ? `<p class="err" role="alert">${esc(S.error)}</p>` : ""}${S.authMsg ? `<p class="note" role="status">${esc(S.authMsg)}</p>` : ""}
+      <div class="row"><button class="btn" type="submit" data-how="in"${S.busy ? " disabled" : ""}>Entrar</button><button class="btn ghost" type="submit" data-how="up"${S.busy ? " disabled" : ""}>Crear cuenta</button></div>
+      ${CFG.google ? `<button class="btn ghost" type="button" data-act="google">Entrar con Google</button>` : ""}
+      <p class="note">${pend ? `Tienes ${pend} ${pend === 1 ? "nota" : "notas"} en este navegador; ${pend === 1 ? "se guardará" : "se guardarán"} en tu cuenta al entrar. ` : ""}Al crear tu cuenta aceptas la <a href="privacidad.html">política de privacidad</a>.</p>
+    </form>`;
+}
+function sessionLine() {
+  if (S.mode !== "supa" || !S.user) return "";
+  return `<div class="acct"><span class="note">Sesión: ${esc(S.user.email)}</span><button class="btn ghost" type="button" data-act="signout">Cerrar sesión</button>${
+    S.profile && !S.editing ? (S.confirmDel
+      ? `<button class="btn ghost danger" type="button" data-act="delyes">Sí, borrar todo</button><button class="btn ghost" type="button" data-act="delno">Cancelar</button>`
+      : `<button class="btn ghost danger" type="button" data-act="delacct">Borrar mi cuenta</button>`) : ""}</div>${
+    S.confirmDel ? `<p class="err" role="alert">Se borrarán tu cuenta, tu perfil, tus notas y tu lista. No se puede deshacer.</p>` : ""}`;
+}
 function renderAccount() {
   const el = $("account"), p = S.profile;
+  if (S.mode === "supa" && !S.authReady) { el.innerHTML = `<h2>Maltea</h2><p class="sub">Conectando con tu cuenta…</p>`; return; }
+  if (S.mode === "supa" && !S.user) { el.innerHTML = authForm(); return; }
+  if (S.mode === "supa" && S.loading) { el.innerHTML = `<h2>Maltea</h2><p class="sub">Cargando tus datos…</p>`; return; }
+  if (S.mode === "supa" && S.loadErr) { el.innerHTML = `<h2>Maltea</h2><p class="err" role="alert">No pudimos cargar tus datos. Revisa tu conexión y recarga la página.</p>${sessionLine()}`; return; }
   if (p && !S.editing) {
     const ids = Object.keys(S.scores), n = ids.length, lv = levelOf(n), next = LEVELS[lv + 1];
     const avg = n ? num(ids.reduce((a, i) => a + S.scores[i], 0) / n) : "–";
@@ -154,7 +193,8 @@ function renderAccount() {
       </div>
       <div class="lvl"><b>Nivel: ${LEVELS[lv][1]}</b><span class="note"> ${next ? `· te faltan ${next[0] - n} para ${next[1]}` : "· nivel máximo"}</span><div class="bar"><i style="width:${pct}%"></i></div></div>
       <p style="margin-top:14px"><a class="btn" href="#cata">Seguir catando</a> <button class="btn ghost" data-act="edit" type="button">Editar perfil</button></p>
-      <p class="note" style="margin-top:12px">${S.cloud ? "Tu perfil y tus notas quedan guardados en tu cuenta." : "Tus datos se guardan solo en este navegador."}${S.stale ? " No pudimos conectar con los datos compartidos; los promedios pueden estar desactualizados." : ""}</p>`;
+      ${sessionLine()}
+      <p class="note" style="margin-top:12px">${S.cloud || S.mode === "supa" ? "Tu perfil y tus notas quedan guardados en tu cuenta." : "Tus datos se guardan solo en este navegador."}${S.syncErr ? " Hay cambios que no se pudieron guardar; revisa tu conexión." : ""}${S.stale ? " No pudimos conectar con los datos compartidos; los promedios pueden estar desactualizados." : ""}</p>`;
     return;
   }
   el.innerHTML = `<h2>${p ? "Editar perfil" : "Crea tu perfil"}</h2>
@@ -169,11 +209,12 @@ function renderAccount() {
       <label class="check" for="adult"><input type="checkbox" id="adult"${p ? " checked" : ""}><span>Tengo 18 años o más, la edad legal para comprar alcohol en Chile.</span></label>
       ${S.error ? `<p class="err" role="alert">${esc(S.error)}</p>` : ""}
       <button class="btn" type="submit">${p ? "Guardar cambios" : "Registrarme en Chile"}</button>
-    </form>`;
+    </form>${sessionLine()}`;
 }
 function needProfile() {
-  S.error = "Crea tu perfil para empezar a puntuar."; S.editing = false; renderAccount();
-  $("account").scrollIntoView({ block: "center" }); const n = $("name"); if (n) n.focus({ preventScroll: true });
+  const noSession = S.mode === "supa" && !S.user;
+  S.error = noSession ? "Entra o crea tu cuenta para puntuar." : "Crea tu perfil para empezar a puntuar."; S.editing = false; renderAccount();
+  $("account").scrollIntoView({ block: "center" }); const n = $(noSession ? "au-email" : "name"); if (n) n.focus({ preventScroll: true });
 }
 
 /* ——— cata rápida ——— */
@@ -242,7 +283,7 @@ function renderPalate() {
 /* ——— recomendaciones y ranking ——— */
 function renderRecs() {
   const el = $("recs"), n = Object.keys(S.scores).length;
-  if (!S.profile) { el.innerHTML = `<div class="empty"><span>Crea tu perfil y puntúa ${MIN} cervezas para recibir recomendaciones.</span><a class="btn" href="#account">Crear perfil</a></div>`; return; }
+  if (!S.profile) { el.innerHTML = `<div class="empty"><span>${S.mode === "supa" && !S.user ? "Entra a tu cuenta" : "Crea tu perfil"} y puntúa ${MIN} cervezas para recibir recomendaciones.</span><a class="btn" href="#account">${S.mode === "supa" && !S.user ? "Entrar" : "Crear perfil"}</a></div>`; return; }
   if (n < MIN) { el.innerHTML = `<div class="empty"><span>Llevas ${n} de ${MIN} notas. Puntúa ${MIN - n} más para ver tus recomendaciones.</span><a class="btn" href="#cata">Ir a la cata rápida</a></div>`; return; }
   const recs = recommend(), agg = community();
   if (!recs.length) { el.innerHTML = `<div class="empty">Tus notas todavía no marcan una preferencia clara. Puntúa algunas cervezas que te gusten mucho o muy poco.</div>`; return; }
@@ -302,18 +343,25 @@ async function pushScores() {
   catch (e) { S.cloud = false; renderAccount(); }
   finally { writing = false; }
 }
-async function pushProfile() { saveLocal(); if (!S.cloud) return; try { await S.db.doc("data/users/" + S.uid + "/profile").set(Object.assign({}, S.profile)); } catch (e) { S.cloud = false; renderAccount(); } }
+async function pushProfile() {
+  saveLocal();
+  if (S.mode === "supa") { if (!S.user) return; const r = await sb.from("profiles").upsert({ id: S.user.id, name: S.profile.name, country: "CL", region: S.profile.region || null, adult: true }); if (r.error) syncFail(); return; }
+  if (!S.cloud) return; try { await S.db.doc("data/users/" + S.uid + "/profile").set(Object.assign({}, S.profile)); } catch (e) { S.cloud = false; renderAccount(); } }
 
-function afterChange(id) { paint(id); renderAccount(); renderPalate(); renderRecs(); renderRank(); renderProgress(deckQueue().length); syncBadges(false); pushScores(); }
+function persist(kind, id) { saveLocal(); if (S.cloud) pushScores(); else if (S.mode === "supa" && S.user) supaWrite(kind, id); }
+function afterChange(id) { paint(id); renderAccount(); renderPalate(); renderRecs(); renderRank(); renderProgress(deckQueue().length); syncBadges(false); persist("rating", id); }
 function rate(id, v) {
   if (!S.profile) { needProfile(); return false; }
+  const hadWish = S.wish.includes(id);
   if (S.scores[id] === v) delete S.scores[id]; else { S.scores[id] = v; S.wish = S.wish.filter(x => x !== id); }
-  afterChange(id); return true;
+  afterChange(id);
+  if (hadWish && !S.wish.includes(id) && S.mode === "supa" && S.user) supaWrite("wish", id);
+  return true;
 }
 function toggleWish(id) {
   if (!S.profile) { needProfile(); return false; }
   const on = S.wish.includes(id); S.wish = on ? S.wish.filter(x => x !== id) : S.wish.concat(id);
-  paint(id); renderAccount(); renderPalate(); syncBadges(false); pushScores();
+  paint(id); renderAccount(); renderPalate(); syncBadges(false); persist("wish", id);
   if (S.seg === "wish") renderList();
   return !on;
 }
@@ -330,9 +378,23 @@ document.addEventListener("submit", e => {
     S.profile = { name: name.slice(0, 30), country: "CL", region, adult: true, since: (S.profile && S.profile.since) || new Date().toISOString().slice(0, 10) };
     S.error = ""; S.editing = false; renderAccount(); renderRecs(); pushProfile();
     if (isNew) toast("Perfil creado", "Parte por la cata rápida y ponle nota a lo que ya conoces.");
+  } else if (e.target.id === "auth") {
+    if (S.busy || !sb) return;
+    const how = (e.submitter && e.submitter.dataset.how) || "in", email = $("au-email").value.trim().toLowerCase(), pass = $("au-pass").value;
+    S.authEmail = email; S.authMsg = "";
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { S.error = "Escribe un correo válido."; renderAccount(); $("au-email").focus(); return; }
+    if (pass.length < 8) { S.error = "La contraseña debe tener al menos 8 caracteres."; renderAccount(); $("au-pass").focus(); return; }
+    doAuth(how, email, pass);
   } else if (e.target.id === "suggest") {
     const n = $("sg-name").value.trim(), msg = $("sg-msg");
     if (!n) { msg.textContent = "Escribe el nombre de la cerveza."; $("sg-name").focus(); return; }
+    if (S.mode === "supa") {
+      if (!S.user) { msg.textContent = "Entra a tu cuenta para enviar sugerencias."; return; }
+      const row = { user_id: S.user.id, name: n.slice(0, 60), brewery: $("sg-brew").value.trim().slice(0, 60) || null, style: $("sg-style").value.trim().slice(0, 40) || null };
+      e.target.reset(); msg.textContent = "Enviando…";
+      sb.from("suggestions").insert(row).then(r => { msg.textContent = r.error ? "No pudimos enviarla. Inténtalo de nuevo." : "Recibida. La revisaremos antes de sumarla."; });
+      return;
+    }
     S.sug = S.sug.concat({ n: n.slice(0, 60), b: $("sg-brew").value.trim().slice(0, 60), s: $("sg-style").value.trim().slice(0, 40), t: new Date().toISOString().slice(0, 10) }).slice(-20);
     saveLocal(); e.target.reset();
     if (S.cloud) S.db.doc("suggestions/" + S.uid).set({ items: S.sug }).then(() => { msg.textContent = "Recibida. La revisaremos antes de sumarla."; }, () => { msg.textContent = "No pudimos enviarla. Quedó guardada en este navegador."; });
@@ -349,7 +411,12 @@ document.addEventListener("click", e => {
   else if (act === "deckseg") { S.deckSeg = t.dataset.s; renderDeck(true); }
   else if (act === "seg") { S.seg = t.dataset.s; S.shown = PAGE; renderList(); }
   else if (act === "fam") { S.fam = t.dataset.f; S.seg = "all"; S.q = ""; S.pais = "all"; S.shown = PAGE; $("fam").value = S.fam; $("q").value = ""; $("pais").value = "all"; renderList(); $("catalogo").scrollIntoView(); }
-  else if (act === "edit") { S.editing = true; renderAccount(); $("name").focus(); }
+  else if (act === "edit") { S.editing = true; S.confirmDel = false; renderAccount(); $("name").focus(); }
+  else if (act === "google") { if (sb) sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } }); }
+  else if (act === "signout") { signOut(); }
+  else if (act === "delacct") { S.confirmDel = true; renderAccount(); }
+  else if (act === "delno") { S.confirmDel = false; renderAccount(); }
+  else if (act === "delyes") { deleteAccount(); }
 });
 document.addEventListener("keydown", e => {
   if (e.ctrlKey || e.metaKey || e.altKey || /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
@@ -424,11 +491,136 @@ async function connect() {
   }, () => { clearTimeout(timer); S.stale = true; renderAccount(); });
 }
 
+/* ——— cuentas propias con Supabase (fuera de Claude) ——— */
+let sb = null; const chains = {};
+function syncFail() { if (!S.syncErr) { S.syncErr = true; toast("No pudimos guardar", "Revisa tu conexión. Tus cambios siguen en este navegador."); renderAccount(); } }
+function supaWrite(kind, id) {
+  const key = kind + ":" + id, uid = S.user.id;
+  chains[key] = (chains[key] || Promise.resolve()).then(async () => {
+    if (!S.user || S.user.id !== uid) return;
+    let q;
+    if (kind === "rating") {
+      const v = S.scores[id];
+      q = v ? sb.from("ratings").upsert({ user_id: uid, beer_id: id, score: v, country: "CL", updated_at: new Date().toISOString() }, { onConflict: "user_id,beer_id" })
+            : sb.from("ratings").delete().eq("user_id", uid).eq("beer_id", id);
+    } else {
+      q = S.wish.includes(id) ? sb.from("wishlist").upsert({ user_id: uid, beer_id: id }, { onConflict: "user_id,beer_id" })
+                              : sb.from("wishlist").delete().eq("user_id", uid).eq("beer_id", id);
+    }
+    const r = await q;
+    if (r.error) syncFail(); else if (S.syncErr) { S.syncErr = false; renderAccount(); }
+  }).catch(syncFail);
+}
+async function loadStats() {
+  const r = await sb.rpc("beer_stats"); if (r.error || !Array.isArray(r.data)) return;
+  const base = {};
+  r.data.forEach(x => { if (!BY[x.beer_id]) return; let t = +x.total, c = +x.votes; const m = S.fetched[x.beer_id]; if (m) { t -= m; c -= 1; } if (c > 0 && t > 0) base[x.beer_id] = { t, c }; });
+  S.statsBase = base; S.statsAt = Date.now();
+}
+function authErr(e) {
+  const c = e.code || "", m = e.message || "";
+  if (c === "invalid_credentials" || /invalid login/i.test(m)) return "Correo o contraseña incorrectos.";
+  if (c === "user_already_exists" || /already registered/i.test(m)) return "Ese correo ya tiene cuenta. Usa «Entrar».";
+  if (c === "weak_password") return "Elige una contraseña más difícil de adivinar.";
+  if (c === "email_not_confirmed") return "Falta confirmar tu correo. Revisa tu bandeja de entrada.";
+  if (c === "over_email_send_rate_limit" || e.status === 429) return "Hay muchas solicitudes en este momento. Inténtalo en unos minutos.";
+  if (c === "signup_disabled") return "El registro de cuentas nuevas está cerrado por ahora.";
+  return "No pudimos completar la operación. " + m;
+}
+async function doAuth(how, email, pass) {
+  S.busy = true; S.error = ""; renderAccount();
+  let res; try { res = how === "up" ? await sb.auth.signUp({ email, password: pass }) : await sb.auth.signInWithPassword({ email, password: pass }); } catch (e) { res = { error: e }; }
+  S.busy = false;
+  if (res.error) { S.error = authErr(res.error); renderAccount(); const f = $("au-pass"); if (f) f.focus(); return; }
+  if (how === "up" && !(res.data && res.data.session)) { S.authMsg = "Te enviamos un correo para confirmar tu cuenta. Ábrelo y luego entra aquí."; renderAccount(); return; }
+  handleSession(res.data.session);
+}
+function handleSession(session) {
+  const u = session && session.user;
+  if (u) { if (!S.user || S.user.id !== u.id) signedIn(u); return; }
+  if (S.user) { signedOut(); return; }
+  if (!S.authReady) {
+    S.authReady = true;
+    if (S.owner) { S.scores = {}; S.wish = []; S.sug = []; S.owner = null; try { localStorage.removeItem(LS); } catch (e) {} } /* datos de una sesión que ya no está */
+    renderAll(); syncBadges(true); loadStats().then(refreshAvg);
+  }
+}
+async function signedIn(u) {
+  const uid = u.id, anon = !S.owner, mine = anon || S.owner === uid;
+  const localScores = mine ? S.scores : {}, localWish = mine ? S.wish : [], localProfile = anon ? S.localProfile : null;
+  S.user = { id: uid, email: u.email || "" }; S.authReady = true; S.loading = true; S.loadErr = false; S.error = ""; S.authMsg = ""; S.busy = false; S.profile = null;
+  renderAccount();
+  let p, r, w;
+  try {
+    [p, r, w] = await Promise.all([
+      sb.from("profiles").select("name,region,created_at").eq("id", uid).maybeSingle(),
+      sb.from("ratings").select("beer_id,score").eq("user_id", uid),
+      sb.from("wishlist").select("beer_id").eq("user_id", uid)]);
+  } catch (e) { p = { error: e }; r = {}; w = {}; }
+  if (!S.user || S.user.id !== uid) return;
+  S.loading = false;
+  if (p.error || r.error || w.error) { S.loadErr = true; renderAccount(); return; }
+  const cs = {}; (r.data || []).forEach(x => { cs[x.beer_id] = x.score; });
+  const cloud = clean(cs), cw = cleanWish((w.data || []).map(x => x.beer_id));
+  S.fetched = Object.assign({}, cloud);
+  const upS = Object.keys(localScores).filter(id => !cloud[id]);
+  S.scores = Object.assign({}, localScores, cloud);
+  const upW = localWish.filter(id => !cw.includes(id) && !S.scores[id]);
+  S.wish = cleanWish(cw.concat(upW)).filter(id => !S.scores[id]);
+  if (p.data) S.profile = { name: String(p.data.name || "").slice(0, 30), country: "CL", region: REGIONS.includes(p.data.region) ? p.data.region : "", adult: true, since: String(p.data.created_at || "").slice(0, 10) };
+  else if (localProfile) { S.profile = localProfile; pushProfile(); }
+  S.owner = uid; S.localProfile = null; saveLocal();
+  renderAll(); syncBadges(true);
+  if (upS.length) {
+    const up = await sb.from("ratings").upsert(upS.map(id => ({ user_id: uid, beer_id: id, score: S.scores[id], country: "CL" })), { onConflict: "user_id,beer_id" });
+    if (up.error) syncFail(); else toast("Notas guardadas en tu cuenta", `Subimos ${upS.length} que tenías en este navegador.`);
+  }
+  if (upW.length) { const up = await sb.from("wishlist").upsert(upW.map(id => ({ user_id: uid, beer_id: id })), { onConflict: "user_id,beer_id" }); if (up.error) syncFail(); }
+  await loadStats(); refreshAvg();
+}
+function signedOut() {
+  S.user = null; S.profile = null; S.scores = {}; S.wish = []; S.sug = []; S.fetched = {}; S.owner = null; S.localProfile = null;
+  S.editing = false; S.confirmDel = false; S.loading = false; S.loadErr = false; S.syncErr = false; S.error = ""; S.skipped.clear();
+  try { localStorage.removeItem(LS); } catch (e) {}
+  renderAll(); syncBadges(true); loadStats().then(refreshAvg);
+}
+async function signOut() { try { await sb.auth.signOut(); } catch (e) {} if (S.user) signedOut(); }
+async function deleteAccount() {
+  const r = await sb.rpc("delete_my_account");
+  if (r.error) { S.confirmDel = false; renderAccount(); toast("No pudimos borrar la cuenta", "Inténtalo de nuevo en unos minutos."); return; }
+  try { await sb.auth.signOut({ scope: "local" }); } catch (e) {}
+  if (S.user) signedOut();
+  toast("Cuenta borrada", "Eliminamos tu perfil, tus notas y tu lista.");
+}
+function supaDown() { /* sin conexión con Supabase: seguir en modo local */
+  if (S.authReady) return;
+  S.mode = "local"; S.authReady = true; S.profile = S.localProfile; S.localProfile = null; renderAll(); syncBadges(true);
+}
+function connectSupa() {
+  const sc = document.createElement("script"); sc.src = SUPA_SRC; sc.onerror = supaDown;
+  sc.onload = () => {
+    try { sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseKey); } catch (e) { supaDown(); return; }
+    /* nunca esperar llamadas a Supabase dentro de este aviso: se difiere con setTimeout */
+    sb.auth.onAuthStateChange((ev, session) => { setTimeout(() => { if (S.mode === "supa") handleSession(session); }, 0); });
+    sb.auth.getSession().then(r => { if (S.mode === "supa") handleSession(r.data && r.data.session); }, supaDown);
+  };
+  document.head.append(sc);
+  setTimeout(supaDown, 10000);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden || S.mode !== "supa" || !sb || Date.now() - S.statsAt < 60000) return;
+    if (S.user) S.fetched = Object.assign({}, S.scores);
+    loadStats().then(refreshAvg);
+  });
+}
+
 /* ——— arranque ——— */
 const famKeys = Object.keys(FAM).filter(k => BEERS.some(b => b.fam === k));
 $("fam").innerHTML = `<option value="all">Todas las familias</option>` + famKeys.map(k => `<option value="${k}">${esc(FAM[k][0])}</option>`).join("");
 $("pais").innerHTML = `<option value="all">Todos los países</option>` + [...new Set(BEERS.map(b => b.country))].sort((a, b) => a === "Chile" ? -1 : b === "Chile" ? 1 : a.localeCompare(b, "es")).map(c => `<option>${esc(c)}</option>`).join("");
 $("countries").innerHTML = COUNTRIES.map(c => `<li class="${c[2] ? "live" : ""}">${c[1]}${c[2] ? " · disponible" : " · próximamente"}</li>`).join("");
 $("nums").innerHTML = [[BEERS.length, "cervezas"], [Object.keys(D.brands).length, "marcas"], [new Set(BEERS.map(b => b.style)).size, "estilos"], [new Set(BEERS.map(b => b.country)).size, "países de origen"]].map(x => `<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join("");
-loadLocal(); renderAll(); renderGuide(); syncBadges(true); bubbles(); connect();
+loadLocal();
+if (SUPA) { S.localProfile = S.owner ? null : S.profile; S.profile = null; $("privacy").hidden = false; }
+renderAll(); renderGuide(); syncBadges(true); bubbles();
+if (SUPA) connectSupa(); else connect();
 })();
