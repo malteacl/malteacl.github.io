@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maltea</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800;900&family=Familjen+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div class="band">
+  <canvas id="bubbles" aria-hidden="true"></canvas>
+  <div class="wrap">
+    <div class="top">
+      <div class="brand"><i aria-hidden="true"></i>Maltea</div>
+      <nav class="nav" aria-label="Secciones">
+        <a href="#cata">Cata rápida</a>
+        <a href="#paladar">Mi paladar</a>
+        <a href="#recomendadas">Recomendadas</a>
+        <a href="#catalogo">Catálogo</a>
+        <a href="#estilos">Estilos</a>
+      </nav>
+      <div class="where"><span class="flag" aria-hidden="true"></span>Edición Chile</div>
+    </div>
+    <div class="hero">
+      <div>
+        <h1>Prueba. Puntúa. Descubre tu próxima <em>chela</em>.</h1>
+        <p class="lead">Puntúa lo que ya has tomado, de la lata del asado a la artesanal de barrio, y Maltea te dice qué probar después.</p>
+        <div class="nums" id="nums"></div>
+      </div>
+      <div class="card" id="account" aria-live="polite"></div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap">
+  <section class="blk" id="cata">
+    <div class="head">
+      <h2>Cata rápida</h2>
+      <p>Te mostramos una cerveza a la vez. Ponle nota si la conoces o pásala si no.</p>
+    </div>
+    <div class="chips" id="deckchips" role="group" aria-label="Qué cervezas mostrar en la cata"></div>
+    <div class="deckwrap" style="margin-top:14px">
+      <div class="deck" id="deck" tabindex="-1"></div>
+      <div class="dside">
+        <div class="card" id="progress"></div>
+        <p class="keys">Con el teclado: <kbd>1</kbd> a <kbd>5</kbd> para puntuar, <kbd>S</kbd> para saltar, <kbd>Q</kbd> para guardarla en tu lista.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="paladar">
+    <div class="head">
+      <h2>Mi paladar</h2>
+      <p>Tu mapa de sabores se dibuja con tus notas. Mientras más puntúas, más preciso.</p>
+    </div>
+    <div class="palate">
+      <div class="card" id="radarbox"></div>
+      <div>
+        <div id="palatetext"></div>
+        <div class="badges" id="badges"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="recomendadas">
+    <div class="head">
+      <h2>Recomendadas para ti</h2>
+      <p>Comparamos el estilo y el perfil de sabor de lo que te gustó con lo que aún no pruebas.</p>
+    </div>
+    <div id="recs"></div>
+  </section>
+
+  <section class="blk" id="ranking">
+    <div class="two">
+      <div>
+        <div class="head"><h2>Las mejor puntuadas</h2></div>
+        <ol class="rank" id="rank"></ol>
+      </div>
+      <div class="card" id="suggestbox">
+        <h3>¿Falta una cerveza?</h3>
+        <p class="sub">Cuéntanos cuál y la revisamos antes de sumarla al catálogo.</p>
+        <form id="suggest" novalidate>
+          <label class="f" for="sg-name">Cerveza
+            <input type="text" id="sg-name" maxlength="60" placeholder="Ej.: Cuello Negro Porter"></label>
+          <label class="f" for="sg-brew">Cervecería
+            <input type="text" id="sg-brew" maxlength="60"></label>
+          <label class="f" for="sg-style">Estilo, si lo sabes
+            <input type="text" id="sg-style" maxlength="40"></label>
+          <p class="note" id="sg-msg" role="status"></p>
+          <button class="btn" type="submit">Enviar sugerencia</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk" id="catalogo">
+    <div class="head">
+      <h2>Catálogo Chile</h2>
+      <p id="count"></p>
+    </div>
+    <div class="chips" id="segchips" role="group" aria-label="Filtrar por tipo"></div>
+    <div class="filters">
+      <input type="search" id="q" placeholder="Buscar cerveza, cervecería o estilo" aria-label="Buscar cerveza, cervecería o estilo">
+      <select id="fam" aria-label="Filtrar por familia de estilo"></select>
+      <select id="pais" aria-label="Filtrar por país de origen"></select>
+      <select id="sort" aria-label="Ordenar catálogo">
+        <option value="name">Ordenar por nombre</option>
+        <option value="avg">Mejor puntuadas</option>
+        <option value="mine">Mis puntuaciones</option>
+        <option value="abv">Mayor graduación</option>
+      </select>
+    </div>
+    <div class="grid" id="list"></div>
+    <div class="more"><button class="btn ghost" id="more" type="button">Mostrar más</button></div>
+  </section>
+
+  <section class="blk" id="estilos">
+    <div class="head">
+      <h2>Guía de estilos</h2>
+      <p>Así clasificamos cada cerveza. El vaso muestra el color típico de la familia. Toca una familia para verla en el catálogo.</p>
+    </div>
+    <div class="guide" id="guide"></div>
+  </section>
+
+  <section class="blk" id="paises">
+    <div class="head">
+      <h2>Países</h2>
+      <p>Cada país tendrá su propio catálogo, según dónde compras. Partimos por Chile.</p>
+    </div>
+    <ul class="countries" id="countries"></ul>
+  </section>
+
+  <footer>
+    <p>Solo para mayores de 18 años. Bebe con moderación.</p>
+    <p>Catálogo armado en noviembre de 2026 con los listados de supermercados chilenos, Birrapedia, World Beer Awards y las propias cervecerías. «Estilo por confirmar» marca las cervezas cuyo estilo aún no validamos con la cervecería. El perfil de sabor se deriva del estilo.</p>
+  </footer>
+</main>
+
+<div id="toasts" aria-live="polite"></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
