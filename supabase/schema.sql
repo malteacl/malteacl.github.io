@@ -6,7 +6,7 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   name text not null check (char_length(name) between 1 and 30),
-  country text not null default 'CL' check (country = 'CL'),
+  country text not null default 'CL' check (country in ('CL', 'ES')),
   region text check (region is null or char_length(region) <= 40),
   adult boolean not null check (adult),
   created_at timestamptz not null default now()
@@ -16,7 +16,7 @@ create table if not exists public.ratings (
   user_id uuid not null default auth.uid() references auth.users (id) on delete cascade,
   beer_id text not null check (char_length(beer_id) between 1 and 80),
   score smallint not null check (score between 1 and 5),
-  country text not null default 'CL',
+  country text not null default 'CL' check (country in ('CL', 'ES')),
   updated_at timestamptz not null default now(),
   primary key (user_id, beer_id)
 );

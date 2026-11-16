@@ -7,7 +7,7 @@ Los nombres de los menús son los de Supabase, Google Cloud y Brevo a noviembre 
 
 ## Ya está hecho
 
-- Catálogo de 231 cervezas, cata rápida, recomendaciones, insignias y ranking.
+- Catálogos de Chile (231 cervezas) y España (160), cata rápida, recomendaciones, insignias y ranking.
 - Cuentas con correo y contraseña, guardadas en Supabase y probadas en el sitio real.
 - Pantallas para recuperar la contraseña y para elegir una nueva (se activan en el paso 3).
 - Botón «Entrar con Google», que aparece solo cuando Google está activado en Supabase.
@@ -15,6 +15,16 @@ Los nombres de los menús son los de Supabase, Google Cloud y Brevo a noviembre 
 - Plantillas de correo en español en `supabase/correos/`.
 
 ## Pasos para lanzar
+
+### 0. Abrir España en la base de datos (1 minuto, obligatorio para España)
+
+Sin esto, las cuentas registradas en España no pueden guardar su perfil.
+
+1. Abre **SQL Editor > New query**.
+2. Pega el contenido completo de `supabase/migraciones/002_espana.sql` y presiona **Run**.
+3. Debe decir «Success. No rows returned».
+
+Antes de promocionar Maltea en España, revisa con un abogado la política de privacidad: una empresa sin sede en la Unión Europea que ofrece un servicio a personas en España puede necesitar un representante en la UE (artículo 27 del RGPD).
 
 ### 1. Dirección del sitio en Supabase (2 minutos, obligatorio)
 

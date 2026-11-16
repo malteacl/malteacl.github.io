@@ -2,21 +2,50 @@
 "use strict";
 const D = window.MALTEA, DIMS = D.dims, FAM = D.families;
 const slug = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/\+/g, "mas").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const BEERS = D.beers.map(r => {
-  const [brand, name, st, abv, flags, src] = r, b = D.brands[brand], s = D.styles[st];
+/* Cada país tiene su catálogo (js/catalogo-xx.js). Una cerveza que se vende en ambos comparte identificador y notas. */
+const MKT = {
+  CL: { name: "Chile", adj: "chilenas", word: "chela", unit: "°", regionLabel: "Región", sample: "Ej.: Cuello Negro Porter",
+    local: "Artesanales y de especialidad chilenas", localShort: "chilenas artesanales o de especialidad",
+    lead: "Puntúa lo que ya has tomado, de la lata del asado a la artesanal de barrio, y Maltea te dice qué probar después.",
+    src: "Catálogo armado en noviembre de 2026 con los listados de supermercados chilenos, Birrapedia, World Beer Awards y las propias cervecerías.",
+    regions: ["Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", "Valparaíso", "Metropolitana de Santiago", "O'Higgins", "Maule", "Ñuble", "Biobío", "La Araucanía", "Los Ríos", "Los Lagos", "Aysén", "Magallanes"] },
+  ES: { name: "España", adj: "españolas", word: "caña", unit: " %", regionLabel: "Comunidad autónoma", sample: "Ej.: La Virgen Jamonera",
+    local: "Artesanas españolas", localShort: "artesanas españolas",
+    lead: "Puntúa lo que ya has probado, de la caña del bar a la artesana de barrio, y Maltea te dice qué probar después.",
+    src: "Catálogo armado en noviembre de 2026 con las webs de los grupos cerveceros, Birrapedia, El Corte Inglés, la OCU y prensa especializada.",
+    regions: ["Andalucía", "Aragón", "Principado de Asturias", "Illes Balears", "Canarias", "Cantabria", "Castilla-La Mancha", "Castilla y León", "Cataluña", "Comunitat Valenciana", "Extremadura", "Galicia", "Comunidad de Madrid", "Región de Murcia", "Comunidad Foral de Navarra", "País Vasco", "La Rioja", "Ceuta", "Melilla"] }
+};
+const CODES = Object.keys(MKT).filter(c => D.markets && D.markets[c]);
+const build = code => { const M = D.markets[code]; return M.beers.map(r => {
+  const [brand, name, st, abv, flags, src] = r, b = M.brands[brand], s = D.styles[st];
   /* sexta dimensión derivada: fruta, jugo o esencias añadidas, separada del aroma que da el lúpulo o la levadura */
   const added = st === "honey" ? 4 : st === "fruitipa" ? 3 : (s[1] === "fruta" || s[1] === "radler" || s[1] === "sour" || st === "na_radler") ? 5 : 1;
   const p = s[2].slice(); if (added === 5) p[4] = Math.min(p[4], 2); p.push(added);
-  return { id: slug(brand + " " + name), brand, name, full: name.startsWith(brand) ? name : brand + " " + name, st, style: s[0], fam: s[1], p, abv,
+  return { id: slug(brand + " " + name), brand, name, full: name.includes(brand) ? name : brand + " " + name, st, style: s[0], fam: s[1], p, abv,
     na: flags.includes("n"), gf: flags.includes("g"), chk: flags.includes("c"), ed: flags.includes("e"), ref: flags.includes("r"), src,
-    maker: b[0], country: b[1], place: b[2], seg: b[3] };
-});
-const BY = Object.fromEntries(BEERS.map(b => [b.id, b]));
-/* el gusto se mide contra la cerveza promedio del catálogo, no contra un punto fijo */
-const MEAN = DIMS.map((_, i) => BEERS.reduce((t, b) => t + b.p[i], 0) / BEERS.length);
-const COUNTRIES = [["CL", "Chile", true], ["AR", "Argentina"], ["PE", "Perú"], ["MX", "México"], ["CO", "Colombia"], ["ES", "España"]];
-const REGIONS = ["Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", "Valparaíso", "Metropolitana de Santiago", "O'Higgins", "Maule", "Ñuble", "Biobío", "La Araucanía", "Los Ríos", "Los Lagos", "Aysén", "Magallanes"];
-const SEGS = [["all", "Todas"], ["masiva", "Masivas"], ["chilena", "Artesanales y de especialidad chilenas"], ["importada", "Importadas"], ["na", "Sin alcohol"], ["rated", "Las que puntué"], ["wish", "Mi lista"]];
+    maker: b[0], country: b[1], place: b[2], seg: b[3], mk: code };
+}); };
+const ALL = {}; CODES.forEach(c => { ALL[c] = build(c); });
+const UNIQUE = {}; CODES.forEach(c => ALL[c].forEach(b => { if (!UNIQUE[b.id]) UNIQUE[b.id] = b; }));
+/* el gusto se mide contra la cerveza promedio de todos los catálogos, no contra un punto fijo */
+const MEAN = DIMS.map((_, i) => Object.values(UNIQUE).reduce((t, b) => t + b.p[i], 0) / Object.keys(UNIQUE).length);
+const COUNTRIES = [["CL", "Chile", true], ["ES", "España", true], ["AR", "Argentina"], ["PE", "Perú"], ["MX", "México"], ["CO", "Colombia"]];
+const MKS = "maltea-pais";
+/* país del catálogo que se está viendo: ?pais=es en la dirección, la última elección o la zona horaria */
+function firstMarket() {
+  const q = (new URLSearchParams(location.search).get("pais") || "").toUpperCase();
+  if (CODES.includes(q)) return [q, true];
+  try { const m = localStorage.getItem(MKS); if (CODES.includes(m)) return [m, true]; } catch (e) {}
+  let tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
+  return [/^(Europe\/Madrid|Atlantic\/Canary|Africa\/Ceuta)$/.test(tz) && CODES.includes("ES") ? "ES" : "CL", false];
+}
+const [START, CHOSEN] = firstMarket();
+let BEERS = ALL[START], BY = {};
+const IDS = {}; CODES.forEach(c => { IDS[c] = new Set(ALL[c].map(b => b.id)); });
+/* país donde se puntuó: el del catálogo que se ve, o el primero que vende esa cerveza */
+const ratingCountry = id => IDS[S.market].has(id) ? S.market : CODES.find(c => IDS[c].has(id)) || S.market;
+const regionsOf = c => (MKT[c] || MKT.CL).regions;
+const segs = () => [["all", "Todas"], ["masiva", "Masivas"], ["local", MKT[S.market].local], ["importada", "Importadas"], ["na", "Sin alcohol"], ["rated", "Las que puntué"], ["wish", "Mi lista"]];
 const LEVELS = [[0, "Curioso"], [3, "Aprendiz"], [10, "Catador"], [25, "Conocedor"], [50, "Sommelier"], [100, "Maestro cervecero"], [180, "Leyenda"]];
 const MIN = 3, PAGE = 24, LS = "maltea-v1";
 const REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -31,11 +60,11 @@ const SUPA_SRC = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/dis
 const S = { profile: null, scores: {}, wish: [], sug: [], all: {}, cloud: false, db: null, uid: null, editing: false, error: "",
   q: "", seg: "all", fam: "all", pais: "all", sort: "name", shown: PAGE, stale: false, deckSeg: "all", skipped: new Set(), earned: new Set(), level: 0,
   mode: SUPA ? "supa" : "local", user: null, authReady: !SUPA, loading: false, loadErr: false, busy: false, authMsg: "", authEmail: "", confirmDel: false, syncErr: false,
-  owner: null, localProfile: null, fetched: {}, statsBase: {}, statsAt: 0, recovery: RECOVERY_LINK, google: false, forgot: false, authHow: "up" };
+  owner: null, localProfile: null, market: START, chosen: CHOSEN, formCountry: "", formAdult: false, fetched: {}, statsBase: {}, statsAt: 0, recovery: RECOVERY_LINK, google: false, forgot: false, authHow: "up" };
 const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const num = x => x.toFixed(1).replace(".", ",");
-const abvTxt = b => b.na ? "0,0°" : b.abv == null ? "" : num(b.abv) + "°";
+const abvTxt = b => { const u = MKT[b.mk].unit; return b.na ? (b.abv === 0 ? "0,0" + u : "Sin alcohol") : b.abv == null ? "" : num(b.abv) + u; };
 const origin = b => (b.place ? b.place + ", " : "") + b.country;
 function clean(o) { const r = {}; if (o && typeof o === "object") for (const k in o) { const v = o[k]; if (BY[k] && Number.isInteger(v) && v >= 1 && v <= 5) r[k] = v; } return r; }
 function cleanWish(a) { return Array.isArray(a) ? [...new Set(a.filter(x => typeof x === "string" && BY[x]))].slice(0, 300) : []; }
@@ -82,7 +111,7 @@ const BADGES = [
   ["cuarto", "25", "Veinticinco", "Puntúa 25 cervezas", c => c.n >= 25],
   ["estilos", "ES", "Explorador", "Prueba 5 familias de estilos", c => c.fams.size >= 5],
   ["mundo", "MU", "Trotamundos", "Prueba cervezas de 5 países", c => c.countries.size >= 5],
-  ["barrio", "CL", "Hincha local", "Puntúa 8 chilenas artesanales o de especialidad", c => c.count(b => b.seg === "chilena") >= 8],
+  ["barrio", "LO", "Hincha local", () => "Puntúa 8 " + MKT[S.market].localShort, c => c.count(b => b.seg === "local") >= 8],
   ["oscuro", "NE", "Lado oscuro", "Puntúa 3 stouts o porters", c => c.count(b => b.fam === "stout") >= 3],
   ["lupulo", "LU", "Lupulómano", "Puntúa 3 IPA", c => c.count(b => b.fam === "ipa") >= 3],
   ["trigo", "TR", "Trigueño", "Puntúa 3 cervezas de trigo", c => c.count(b => b.fam === "trigo") >= 3],
@@ -91,6 +120,7 @@ const BADGES = [
   ["flechazo", "5/5", "Flechazo", "Pon una nota 5", c => c.has(5)],
   ["lista", "LI", "Con ganas", "Guarda 3 cervezas en tu lista", c => c.wish >= 3]
 ];
+const bdesc = b => typeof b[3] === "function" ? b[3]() : b[3];
 function badgeCtx() {
   const ids = Object.keys(S.scores), bs = ids.map(i => BY[i]);
   return { n: ids.length, fams: new Set(bs.map(b => b.fam)), countries: new Set(bs.map(b => b.country)), count: f => bs.filter(f).length, has: v => ids.some(i => S.scores[i] === v), wish: S.wish.length };
@@ -98,7 +128,7 @@ function badgeCtx() {
 function syncBadges(silent) {
   const c = badgeCtx(), now = new Set(BADGES.filter(b => b[4](c)).map(b => b[0])), lvl = levelOf(c.n);
   if (!silent) {
-    BADGES.forEach(b => { if (now.has(b[0]) && !S.earned.has(b[0])) { toast("Insignia: " + b[2], b[3]); burst(); } });
+    BADGES.forEach(b => { if (now.has(b[0]) && !S.earned.has(b[0])) { toast("Insignia: " + b[2], bdesc(b)); burst(); } });
     if (lvl > S.level) { toast("Subiste de nivel", "Ahora eres " + LEVELS[lvl][1] + "."); burst(); }
   }
   S.earned = now; S.level = lvl;
@@ -206,7 +236,8 @@ function renderAccount() {
     const avg = n ? num(ids.reduce((a, i) => a + S.scores[i], 0) / n) : "–";
     const pct = next ? Math.round((n - LEVELS[lv][0]) / (next[0] - LEVELS[lv][0]) * 100) : 100;
     el.innerHTML = `<h2>Hola, ${esc(p.name)}</h2>
-      <p class="sub">Compras en Chile${p.region ? " · " + esc(p.region) : ""}</p>
+      <p class="sub">Compras en ${esc((MKT[p.country] || MKT.CL).name)}${p.region ? " · " + esc(p.region) : ""}</p>
+      ${p.country !== S.market ? `<p class="note">Estás viendo el catálogo de ${esc(MKT[S.market].name)}. <button type="button" class="linkbtn" data-act="mkt" data-m="${esc(p.country)}">Volver a ${esc(MKT[p.country].name)}</button></p>` : ""}
       <div class="stats">
         <div class="stat"><b>${n}</b><span>puntuadas</span></div>
         <div class="stat"><b>${avg}</b><span>tu promedio</span></div>
@@ -218,18 +249,19 @@ function renderAccount() {
       <p class="note" style="margin-top:12px">${S.cloud || S.mode === "supa" ? "Tu perfil y tus notas quedan guardados en tu cuenta." : "Tus datos se guardan solo en este navegador."}${S.syncErr ? " Hay cambios que no se pudieron guardar; revisa tu conexión." : ""}${S.stale ? " No pudimos conectar con los datos compartidos; los promedios pueden estar desactualizados." : ""}</p>`;
     return;
   }
+  const ctry = S.formCountry || (p && p.country) || S.market;
   el.innerHTML = `<h2>${p ? "Editar perfil" : "Crea tu perfil"}</h2>
     <p class="sub">Elige el país donde compras. Así ves solo cervezas que puedes encontrar.</p>
     <form id="reg" novalidate>
       <label class="f" for="name">Nombre o apodo
         <input type="text" id="name" maxlength="30" autocomplete="nickname" value="${p ? esc(p.name) : ""}"></label>
       <label class="f" for="country">País donde compras
-        <select id="country">${COUNTRIES.map(c => `<option value="${c[0]}"${c[2] ? "" : " disabled"}>${c[1]}${c[2] ? "" : " (próximamente)"}</option>`).join("")}</select></label>
-      <label class="f" for="region">Región (opcional)
-        <select id="region"><option value="">Sin indicar</option>${REGIONS.map(r => `<option${p && p.region === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
-      <label class="check" for="adult"><input type="checkbox" id="adult"${p ? " checked" : ""}><span>Tengo 18 años o más, la edad legal para comprar alcohol en Chile.</span></label>
+        <select id="country">${COUNTRIES.map(c => `<option value="${c[0]}"${c[2] ? (c[0] === ctry ? " selected" : "") : " disabled"}>${c[1]}${c[2] ? "" : " (próximamente)"}</option>`).join("")}</select></label>
+      <label class="f" for="region">${MKT[ctry].regionLabel} (opcional)
+        <select id="region"><option value="">Sin indicar</option>${regionsOf(ctry).map(r => `<option${p && p.region === r ? " selected" : ""}>${esc(r)}</option>`).join("")}</select></label>
+      <label class="check" for="adult"><input type="checkbox" id="adult"${p || S.formAdult ? " checked" : ""}><span>Tengo 18 años o más, la edad legal para comprar alcohol en ${MKT[ctry].name}.</span></label>
       ${S.error ? `<p class="err" role="alert">${esc(S.error)}</p>` : ""}
-      <button class="btn" type="submit">${p ? "Guardar cambios" : "Registrarme en Chile"}</button>
+      <button class="btn" type="submit">${p ? "Guardar cambios" : "Registrarme en " + MKT[ctry].name}</button>
     </form>${sessionLine()}`;
 }
 function needProfile() {
@@ -239,11 +271,12 @@ function needProfile() {
 }
 
 /* ——— cata rápida ——— */
-const DECK = BEERS.map(b => [b, (b.seg === "masiva" ? 0 : 1) + (b.ref ? 1.5 : 0) + (b.na ? 1 : 0) + Math.random()]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
+let DECK = [];
+const makeDeck = () => BEERS.map(b => [b, (b.seg === "masiva" ? 0 : 1) + (b.ref ? 1.5 : 0) + (b.na ? 1 : 0) + Math.random()]).sort((a, b) => a[1] - b[1]).map(x => x[0]);
 const deckQueue = () => DECK.filter(b => !S.scores[b.id] && !S.skipped.has(b.id) && !S.wish.includes(b.id) && (S.deckSeg === "all" || b.seg === S.deckSeg));
 function renderDeck(anim) {
   const q = deckQueue(), el = $("deck");
-  $("deckchips").innerHTML = SEGS.slice(0, 4).map(s => `<button type="button" class="chip" data-act="deckseg" data-s="${s[0]}" aria-pressed="${S.deckSeg === s[0]}">${s[1]}</button>`).join("");
+  $("deckchips").innerHTML = segs().slice(0, 4).map(s => `<button type="button" class="chip" data-act="deckseg" data-s="${s[0]}" aria-pressed="${S.deckSeg === s[0]}">${s[1]}</button>`).join("");
   if (!q.length) {
     el.innerHTML = `<div class="empty" style="height:100%"><span>${S.skipped.size ? "No quedan cervezas por mostrar en esta selección." : "Ya puntuaste todas las cervezas de esta selección."}</span>${S.skipped.size ? `<button class="btn" type="button" data-act="unskip">Volver a ver las que salté</button>` : ""}</div>`;
   } else {
@@ -298,7 +331,7 @@ function renderPalate() {
   }
   $("palatetext").innerHTML = h;
   const c = badgeCtx();
-  $("badges").innerHTML = BADGES.map(b => { const on = b[4](c); return `<div class="badge${on ? " on" : ""}"><span class="cap" aria-hidden="true">${b[1]}</span><div><b>${b[2]}</b><span>${on ? "Conseguida" : b[3]}</span></div></div>`; }).join("");
+  $("badges").innerHTML = BADGES.map(b => { const on = b[4](c); return `<div class="badge${on ? " on" : ""}"><span class="cap" aria-hidden="true">${b[1]}</span><div><b>${b[2]}</b><span>${on ? "Conseguida" : bdesc(b)}</span></div></div>`; }).join("");
 }
 
 /* ——— recomendaciones y ranking ——— */
@@ -338,7 +371,7 @@ function filtered() {
 }
 function renderList() {
   const { rows, agg } = filtered();
-  $("segchips").innerHTML = SEGS.map(s => `<button type="button" class="chip" data-act="seg" data-s="${s[0]}" aria-pressed="${S.seg === s[0]}">${s[1]}</button>`).join("");
+  $("segchips").innerHTML = segs().map(s => `<button type="button" class="chip" data-act="seg" data-s="${s[0]}" aria-pressed="${S.seg === s[0]}">${s[1]}</button>`).join("");
   $("count").textContent = `${rows.length} de ${BEERS.length} cervezas`;
   $("list").innerHTML = rows.length ? rows.slice(0, S.shown).map(b => card(b, agg)).join("") : `<div class="empty" style="grid-column:1/-1">Ninguna cerveza coincide con estos filtros.</div>`;
   const left = rows.length - S.shown; $("more").hidden = left <= 0; if (left > 0) $("more").textContent = `Mostrar más (${left} restantes)`;
@@ -360,13 +393,13 @@ async function pushScores() {
   saveLocal(); if (!S.cloud) return;
   if (writing) { dirty = true; return; }
   writing = true;
-  try { do { dirty = false; await S.db.doc("ratings/" + S.uid).set({ country: "CL", scores: Object.assign({}, S.scores), wish: S.wish.slice() }); } while (dirty); }
+  try { do { dirty = false; await S.db.doc("ratings/" + S.uid).set({ country: S.profile ? S.profile.country : S.market, scores: Object.assign({}, S.scores), wish: S.wish.slice() }); } while (dirty); }
   catch (e) { S.cloud = false; renderAccount(); }
   finally { writing = false; }
 }
 async function pushProfile() {
   saveLocal();
-  if (S.mode === "supa") { if (!S.user) return; const r = await sb.from("profiles").upsert({ id: S.user.id, name: S.profile.name, country: "CL", region: S.profile.region || null, adult: true }); if (r.error) syncFail(); return; }
+  if (S.mode === "supa") { if (!S.user) return; const r = await sb.from("profiles").upsert({ id: S.user.id, name: S.profile.name, country: S.profile.country, region: S.profile.region || null, adult: true }); if (r.error) syncFail(); return; }
   if (!S.cloud) return; try { await S.db.doc("data/users/" + S.uid + "/profile").set(Object.assign({}, S.profile)); } catch (e) { S.cloud = false; renderAccount(); } }
 
 function persist(kind, id) { saveLocal(); if (S.cloud) pushScores(); else if (S.mode === "supa" && S.user) supaWrite(kind, id); }
@@ -391,13 +424,15 @@ function toggleWish(id) {
 document.addEventListener("submit", e => {
   e.preventDefault();
   if (e.target.id === "reg") {
-    const name = $("name").value.trim(), region = $("region").value;
+    const name = $("name").value.trim(), country = $("country").value, region = $("region").value;
     if (!name) { S.error = "Escribe un nombre o apodo."; renderAccount(); $("name").focus(); return; }
-    if ($("country").value !== "CL") { S.error = "Por ahora solo puedes registrarte en Chile."; renderAccount(); return; }
+    if (!CODES.includes(country)) { S.error = "Por ahora puedes registrarte en Chile o en España."; renderAccount(); return; }
     if (!$("adult").checked) { S.error = "Debes confirmar que tienes 18 años o más."; renderAccount(); $("adult").focus(); return; }
     const isNew = !S.profile;
-    S.profile = { name: name.slice(0, 30), country: "CL", region, adult: true, since: (S.profile && S.profile.since) || new Date().toISOString().slice(0, 10) };
-    S.error = ""; S.editing = false; renderAccount(); renderRecs(); pushProfile();
+    S.profile = { name: name.slice(0, 30), country, region: regionsOf(country).includes(region) ? region : "", adult: true, since: (S.profile && S.profile.since) || new Date().toISOString().slice(0, 10) };
+    S.error = ""; S.editing = false; S.formCountry = ""; S.formAdult = false;
+    if (country !== S.market) setMarket(country, true); else renderAccount();
+    renderRecs(); pushProfile();
     if (isNew) toast("Perfil creado", "Parte por la cata rápida y ponle nota a lo que ya conoces.");
   } else if (e.target.id === "auth") {
     if (S.busy || !sb) return;
@@ -453,7 +488,8 @@ document.addEventListener("click", e => {
   else if (act === "deckseg") { S.deckSeg = t.dataset.s; renderDeck(true); }
   else if (act === "seg") { S.seg = t.dataset.s; S.shown = PAGE; renderList(); }
   else if (act === "fam") { S.fam = t.dataset.f; S.seg = "all"; S.q = ""; S.pais = "all"; S.shown = PAGE; $("fam").value = S.fam; $("q").value = ""; $("pais").value = "all"; renderList(); $("catalogo").scrollIntoView(); }
-  else if (act === "edit") { S.editing = true; S.confirmDel = false; renderAccount(); $("name").focus(); }
+  else if (act === "mkt") { if (t.dataset.m !== S.market) { setMarket(t.dataset.m, true); toast("Catálogo de " + MKT[S.market].name, `${BEERS.length} cervezas que puedes encontrar allí.`); } }
+  else if (act === "edit") { S.formCountry = ""; S.editing = true; S.confirmDel = false; renderAccount(); $("name").focus(); }
   else if (act === "google") { if (sb) sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: SITE } }); }
   else if (act === "howin" || act === "howup") {
     const em = $("au-email"); if (em) S.authEmail = em.value.trim();
@@ -476,6 +512,11 @@ document.addEventListener("keydown", e => {
   if (k >= "1" && k <= "5") { if (rate(c.dataset.beer, +k)) deckNext("out-r"); }
   else if (k === "s") { S.skipped.add(c.dataset.beer); deckNext("out-l"); }
   else if (k === "q") { if (toggleWish(c.dataset.beer)) { toast("Guardada en tu lista", BY[c.dataset.beer].full); S.skipped.add(c.dataset.beer); deckNext("out-l"); } }
+});
+document.addEventListener("change", e => {
+  if (e.target.id !== "country") return;
+  const nm = $("name"); S.formCountry = e.target.value; S.formAdult = $("adult").checked; S.error = "";
+  const keep = nm ? nm.value : ""; renderAccount(); if ($("name")) $("name").value = keep; $("country").focus();
 });
 $("q").addEventListener("input", e => { S.q = e.target.value; S.shown = PAGE; renderList(); });
 $("fam").addEventListener("change", e => { S.fam = e.target.value; S.shown = PAGE; renderList(); });
@@ -520,7 +561,7 @@ async function connect() {
   S.db = db; S.uid = uid; S.cloud = true;
   try {
     const snap = await db.doc("data/users/" + uid + "/profile").get(), d = snap.exists && snap.data();
-    if (d && typeof d.name === "string") S.profile = { name: d.name.slice(0, 30), country: "CL", region: REGIONS.includes(d.region) ? d.region : "", adult: true, since: d.since || "" };
+    if (d && typeof d.name === "string") { const c = CODES.includes(d.country) ? d.country : "CL"; S.profile = { name: d.name.slice(0, 30), country: c, region: regionsOf(c).includes(d.region) ? d.region : "", adult: true, since: d.since || "" }; followProfile(); }
     else if (S.profile) pushProfile();
     const sg = await db.doc("suggestions/" + uid).get(), sd = sg.exists && sg.data();
     if (sd && Array.isArray(sd.items)) S.sug = sd.items.slice(-20);
@@ -551,7 +592,7 @@ function supaWrite(kind, id) {
     let q;
     if (kind === "rating") {
       const v = S.scores[id];
-      q = v ? sb.from("ratings").upsert({ user_id: uid, beer_id: id, score: v, country: "CL", updated_at: new Date().toISOString() }, { onConflict: "user_id,beer_id" })
+      q = v ? sb.from("ratings").upsert({ user_id: uid, beer_id: id, score: v, country: ratingCountry(id), updated_at: new Date().toISOString() }, { onConflict: "user_id,beer_id" })
             : sb.from("ratings").delete().eq("user_id", uid).eq("beer_id", id);
     } else {
       q = S.wish.includes(id) ? sb.from("wishlist").upsert({ user_id: uid, beer_id: id }, { onConflict: "user_id,beer_id" })
@@ -608,7 +649,7 @@ async function signedIn(u) {
   let p, r, w;
   try {
     [p, r, w] = await Promise.all([
-      sb.from("profiles").select("name,region,created_at").eq("id", uid).maybeSingle(),
+      sb.from("profiles").select("name,country,region,created_at").eq("id", uid).maybeSingle(),
       sb.from("ratings").select("beer_id,score").eq("user_id", uid),
       sb.from("wishlist").select("beer_id").eq("user_id", uid)]);
   } catch (e) { p = { error: e }; r = {}; w = {}; }
@@ -622,12 +663,12 @@ async function signedIn(u) {
   S.scores = Object.assign({}, localScores, cloud);
   const upW = localWish.filter(id => !cw.includes(id) && !S.scores[id]);
   S.wish = cleanWish(cw.concat(upW)).filter(id => !S.scores[id]);
-  if (p.data) S.profile = { name: String(p.data.name || "").slice(0, 30), country: "CL", region: REGIONS.includes(p.data.region) ? p.data.region : "", adult: true, since: String(p.data.created_at || "").slice(0, 10) };
+  if (p.data) { const c = CODES.includes(p.data.country) ? p.data.country : "CL"; S.profile = { name: String(p.data.name || "").slice(0, 30), country: c, region: regionsOf(c).includes(p.data.region) ? p.data.region : "", adult: true, since: String(p.data.created_at || "").slice(0, 10) }; }
   else if (localProfile) { S.profile = localProfile; pushProfile(); }
   S.owner = uid; S.localProfile = null; saveLocal();
-  renderAll(); syncBadges(true);
+  if (!followProfile()) renderAll(); syncBadges(true);
   if (upS.length) {
-    const up = await sb.from("ratings").upsert(upS.map(id => ({ user_id: uid, beer_id: id, score: S.scores[id], country: "CL" })), { onConflict: "user_id,beer_id" });
+    const up = await sb.from("ratings").upsert(upS.map(id => ({ user_id: uid, beer_id: id, score: S.scores[id], country: ratingCountry(id) })), { onConflict: "user_id,beer_id" });
     if (up.error) syncFail(); else toast("Notas guardadas en tu cuenta", `Subimos ${upS.length} que tenías en este navegador.`);
   }
   if (upW.length) { const up = await sb.from("wishlist").upsert(upW.map(id => ({ user_id: uid, beer_id: id })), { onConflict: "user_id,beer_id" }); if (up.error) syncFail(); }
@@ -656,7 +697,7 @@ async function exportData(btn) {
   const data = {
     generado: new Date().toISOString(), responsable: "Maltea SA", contacto: "malteasa.cerveza@gmail.com",
     cuenta: { correo: S.user.email },
-    perfil: S.profile ? { nombre: S.profile.name, pais: S.profile.country, region: S.profile.region || null, mayor_de_edad: true, desde: S.profile.since || null } : null,
+    perfil: S.profile ? { nombre: S.profile.name, pais: (MKT[S.profile.country] || {}).name || S.profile.country, region: S.profile.region || null, mayor_de_edad: true, desde: S.profile.since || null } : null,
     notas: Object.keys(S.scores).sort().map(id => ({ cerveza: BY[id].full, id, nota: S.scores[id] })),
     lista: S.wish.map(id => ({ cerveza: BY[id].full, id })),
     sugerencias: (sg.data || []).map(x => ({ cerveza: x.name, cerveceria: x.brewery, estilo: x.style, fecha: x.created_at }))
@@ -690,14 +731,45 @@ function connectSupa() {
   });
 }
 
+/* ——— país del catálogo ——— */
+function applyMarket() {
+  const m = S.market, K = MKT[m];
+  BEERS = ALL[m];
+  /* las notas de otros países se conservan; en la vista de este país manda su ficha (fabricante, segmento, graduación) */
+  BY = Object.assign({}, UNIQUE, Object.fromEntries(BEERS.map(b => [b.id, b])));
+  DECK = makeDeck(); S.skipped.clear();
+  const famKeys = Object.keys(FAM).filter(k => BEERS.some(b => b.fam === k));
+  if (S.fam !== "all" && !famKeys.includes(S.fam)) S.fam = "all";
+  $("fam").innerHTML = `<option value="all">Todas las familias</option>` + famKeys.map(k => `<option value="${k}"${k === S.fam ? " selected" : ""}>${esc(FAM[k][0])}</option>`).join("");
+  const ps = [...new Set(BEERS.map(b => b.country))].sort((a, b) => a === K.name ? -1 : b === K.name ? 1 : a.localeCompare(b, "es"));
+  if (!ps.includes(S.pais)) S.pais = "all";
+  $("pais").innerHTML = `<option value="all">Todos los países</option>` + ps.map(c => `<option${c === S.pais ? " selected" : ""}>${esc(c)}</option>`).join("");
+  $("nums").innerHTML = [[BEERS.length, "cervezas"], [new Set(BEERS.map(b => b.brand)).size, "marcas"], [new Set(BEERS.map(b => b.style)).size, "estilos"], [ps.length, "países de origen"]].map(x => `<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join("");
+  $("mkts").innerHTML = CODES.map(c => `<button type="button" data-act="mkt" data-m="${c}" aria-pressed="${c === m}"><span class="flag ${c.toLowerCase()}" aria-hidden="true"></span>${MKT[c].name}</button>`).join("");
+  $("word").textContent = K.word; $("lead").textContent = K.lead; $("catname").textContent = K.name; $("srcnote").textContent = K.src;
+  $("sg-name").placeholder = K.sample;
+  $("countries").innerHTML = COUNTRIES.map(c => `<li class="${c[2] ? "live" : ""}">${c[1]}${c[2] ? " · disponible" : " · próximamente"}</li>`).join("");
+  document.documentElement.dataset.pais = m.toLowerCase();
+}
+function setMarket(m, chosen) {
+  if (!CODES.includes(m)) return;
+  if (chosen) { S.chosen = true; try { localStorage.setItem(MKS, m); } catch (e) {} }
+  if (m === S.market && BEERS === ALL[m] && Object.keys(BY).length) return;
+  S.market = m; S.seg = "all"; S.deckSeg = "all"; S.shown = PAGE;
+  applyMarket(); renderAll(); renderGuide(); syncBadges(true);
+}
+/* al cargar un perfil, se muestra el catálogo de su país salvo que la persona haya elegido otro */
+function followProfile() {
+  if (!S.profile || S.chosen || S.profile.country === S.market || !CODES.includes(S.profile.country)) return false;
+  setMarket(S.profile.country, false); return true;
+}
+
 /* ——— arranque ——— */
-const famKeys = Object.keys(FAM).filter(k => BEERS.some(b => b.fam === k));
-$("fam").innerHTML = `<option value="all">Todas las familias</option>` + famKeys.map(k => `<option value="${k}">${esc(FAM[k][0])}</option>`).join("");
-$("pais").innerHTML = `<option value="all">Todos los países</option>` + [...new Set(BEERS.map(b => b.country))].sort((a, b) => a === "Chile" ? -1 : b === "Chile" ? 1 : a.localeCompare(b, "es")).map(c => `<option>${esc(c)}</option>`).join("");
-$("countries").innerHTML = COUNTRIES.map(c => `<li class="${c[2] ? "live" : ""}">${c[1]}${c[2] ? " · disponible" : " · próximamente"}</li>`).join("");
-$("nums").innerHTML = [[BEERS.length, "cervezas"], [Object.keys(D.brands).length, "marcas"], [new Set(BEERS.map(b => b.style)).size, "estilos"], [new Set(BEERS.map(b => b.country)).size, "países de origen"]].map(x => `<div><b>${x[0]}</b><span>${x[1]}</span></div>`).join("");
+applyMarket();
 loadLocal();
+if (S.profile && !CODES.includes(S.profile.country)) S.profile.country = "CL";
 if (SUPA) { S.localProfile = S.owner ? null : S.profile; S.profile = null; $("privacy").hidden = false; }
+else followProfile();
 renderAll(); renderGuide(); syncBadges(true); bubbles();
 if (SUPA) connectSupa(); else connect();
 })();

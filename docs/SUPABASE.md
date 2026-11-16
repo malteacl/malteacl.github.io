@@ -9,7 +9,7 @@ Dentro de Claude, la página no puede conectarse a Supabase: ahí usa el almacen
 Los nombres de los menús son los del panel de Supabase a noviembre de 2026 y pueden cambiar.
 
 1. **Crea el proyecto.** En [supabase.com](https://supabase.com) crea un proyecto en el plan gratuito. Elige una región cercana a Chile, como São Paulo.
-2. **Crea las tablas.** Abre **SQL Editor**, pega el contenido completo de `supabase/schema.sql` y ejecútalo.
+2. **Crea las tablas.** Abre **SQL Editor**, pega el contenido completo de `supabase/schema.sql` y ejecútalo. Si el proyecto ya existía antes de abrir España, ejecuta también `supabase/migraciones/002_espana.sql`.
 3. **Desactiva la confirmación por correo.** En **Authentication > Sign In / Providers > Email**, apaga **Confirm email**. El servicio de correo incluido solo envía 2 correos por hora y únicamente a miembros del proyecto, así que con la confirmación encendida casi nadie podría registrarse.
 4. **Indica la dirección del sitio.** En **Authentication > URL Configuration**, pon la dirección pública de Maltea (por ejemplo `https://malteacl.github.io/`) en **Site URL** y agrégala en **Redirect URLs**.
 5. **Copia los dos datos públicos.** En **Project Settings > API Keys** copia la **Project URL** y la **Publishable key** (`sb_publishable_...`).
@@ -21,8 +21,8 @@ La clave publicable puede estar en el repositorio: solo permite lo que autorizan
 
 | Tabla | Contenido | Quién puede leer o escribir |
 |---|---|---|
-| `profiles` | Nombre, país, región, mayoría de edad | Solo su dueño |
-| `ratings` | Nota de 1 a 5 por cerveza | Solo su dueño |
+| `profiles` | Nombre, país (CL o ES), región, mayoría de edad | Solo su dueño |
+| `ratings` | Nota de 1 a 5 por cerveza y país del catálogo desde el que se puntuó | Solo su dueño |
 | `wishlist` | Cervezas por probar | Solo su dueño |
 | `suggestions` | Cervezas sugeridas | Su autor las crea y las lee; tú las ves en el panel de Supabase |
 
@@ -34,6 +34,8 @@ Los promedios salen de la función `beer_stats()`, que entrega votos y suma por 
 - Al entrar por primera vez, las notas que la persona tenía en el navegador se suben a su cuenta.
 - Al cerrar sesión, el navegador queda sin datos de esa persona.
 - Si Supabase no responde en 10 segundos, la página sigue funcionando en modo local.
+- Al entrar, se muestra el catálogo del país del perfil, salvo que la persona haya elegido otro arriba.
+- Los promedios son globales: una cerveza que se vende en Chile y en España suma las notas de ambos países.
 
 ## Google, correo y lanzamiento
 

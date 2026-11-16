@@ -40,9 +40,16 @@ button{font:inherit;color:inherit}
 .nav{display:flex;gap:4px 16px;flex-wrap:wrap;font-size:15px;font-weight:600}
 .nav a{text-decoration:none;padding:4px 0;border-bottom:2px solid transparent}
 .nav a:hover{border-color:var(--amber)}
-.where{display:flex;align-items:center;gap:8px;font-size:14px;border:1px solid rgba(238,244,228,.35);border-radius:999px;padding:5px 12px}
-.flag{width:18px;height:12px;border-radius:2px;background:linear-gradient(#fff 0 50%,#c2362c 50%);position:relative;overflow:hidden;flex:none}
-.flag::before{content:"";position:absolute;left:0;top:0;width:6px;height:6px;background:#1c3f94}
+.where{display:flex;gap:2px;border:1px solid rgba(238,244,228,.35);border-radius:999px;padding:3px}
+.where button{display:flex;align-items:center;gap:7px;font:inherit;font-size:14px;color:inherit;background:none;border:0;border-radius:999px;padding:4px 11px;cursor:pointer;opacity:.75}
+.where button:hover{opacity:1}
+.where button[aria-pressed="true"]{background:rgba(238,244,228,.16);opacity:1;font-weight:600}
+.where button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+.flag{width:18px;height:12px;border-radius:2px;position:relative;overflow:hidden;flex:none}
+.flag.cl{background:linear-gradient(#fff 0 50%,#c2362c 50%)}
+.flag.cl::before{content:"";position:absolute;left:0;top:0;width:6px;height:6px;background:#1c3f94}
+.flag.es{background:linear-gradient(#c60b1e 0 25%,#ffc400 25% 75%,#c60b1e 75%)}
+.linkbtn{font:inherit;color:inherit;background:none;border:0;padding:0;text-decoration:underline;cursor:pointer}
 .hero{display:grid;grid-template-columns:1.15fr .85fr;gap:40px;padding:26px 0 44px;align-items:start}
 .hero h1{font-weight:900;font-size:clamp(44px,7.2vw,90px)}
 .hero h1 em{font-style:normal;color:var(--amber)}
