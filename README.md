@@ -5,7 +5,7 @@ Prueba, puntúa y descubre tu próxima cerveza. Maltea reúne las cervezas que s
 ## Qué incluye
 
 - **Registro por país de compra:** Chile o España. El resto aparece como «próximamente». Arriba, junto al menú, se cambia el catálogo que se ve; también se puede abrir directo con `?pais=es` o `?pais=cl`.
-- **Catálogo Chile:** 231 cervezas de 76 marcas y 15 países de origen, desde las masivas (Cristal, Escudo, Heineken, Coors, Corona) hasta artesanales (Kross, Granizo, Tamango, Soko's) e importadas.
+- **Catálogo Chile:** 232 cervezas de 77 marcas y 15 países de origen, desde las masivas (Cristal, Escudo, Heineken, Coors, Corona) hasta artesanales (Kross, Granizo, Tamango, Soko's) e importadas.
 - **Catálogo España:** 160 cervezas de 49 marcas, de Mahou, Estrella Damm, Cruzcampo, Estrella Galicia, San Miguel y Alhambra a las marcas de Mercadona y Dia, artesanas (La Virgen, Nómada, Basqueland, Naparbier, La Pirata) e importadas. 27 se venden en ambos países y comparten notas.
 - **Cata rápida:** una cerveza a la vez, para puntuar con 1 a 5 vasos, saltar o guardar en la lista.
 - **Mi paladar:** mapa de sabores, niveles e insignias.

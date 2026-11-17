@@ -7,7 +7,7 @@ Los nombres de los menús son los de Supabase, Google Cloud y Brevo a noviembre 
 
 ## Ya está hecho
 
-- Catálogos de Chile (231 cervezas) y España (160), cata rápida, recomendaciones, insignias y ranking.
+- Catálogos de Chile (232 cervezas) y España (160), cata rápida, recomendaciones, insignias y ranking.
 - Cuentas con correo y contraseña, guardadas en Supabase y probadas en el sitio real.
 - Pantallas para recuperar la contraseña y para elegir una nueva (se activan en el paso 3).
 - Botón «Entrar con Google», que aparece solo cuando Google está activado en Supabase.

@@ -48,7 +48,7 @@ Las cinco últimas filas se apoyan en conocimiento general del estilo y no en un
 
 ## Estilos por confirmar
 
-Royal Guard Sweet y Rosé, Becker B-Mix, Kunstmann Lager Blanc, Austral Patagonia Lager Mosaic y Muérdago, D'olbek Lager Belga, Kross Rosé Ale, Odissea Tropic Ale, Altamira Banana Pancake, Flensburger Pilsener y Gold, Damm Inedit y Barcelona Hoppy Flower.
+AC/DC Lager (Jumbo la vende como lager; en Alemania Karlsberg la rotula como Pils, así que quedó como Pale Lager hasta confirmar), Royal Guard Sweet y Rosé, Becker B-Mix, Kunstmann Lager Blanc, Austral Patagonia Lager Mosaic y Muérdago, D'olbek Lager Belga, Kross Rosé Ale, Odissea Tropic Ale, Altamira Banana Pancake, Flensburger Pilsener y Gold, Damm Inedit y Barcelona Hoppy Flower.
 
 ## Lo que no cubre
 
